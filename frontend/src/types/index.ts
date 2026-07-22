@@ -46,3 +46,63 @@ export interface InvestmentResponse {
   effective_annual_rate: number
   notes: string[]
 }
+
+// --- Financial module types ---
+
+export interface Ahorro {
+  id: string
+  amount: number
+  account_name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Creditos {
+  id: string
+  balance: number
+  credit_name: string
+  credit_limit: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Deudas {
+  id: string
+  total_amount: number
+  monthly_payment: number
+  debt_name: string
+  interest_rate: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Afore {
+  id: string
+  balance: number
+  afore_name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface GbmPosition {
+  id: string
+  ticker: string
+  shares: number
+  avg_cost: number
+  market_value: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PatrimonioNeto {
+  total: number
+  assets: number
+  liabilities: number
+  calculated_at: string
+}
+
+export interface ModuleUpdateStatus {
+  module_name: string
+  last_updated_at: string | null
+  stale: boolean
+}
