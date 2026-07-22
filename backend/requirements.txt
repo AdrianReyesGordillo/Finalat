@@ -1,0 +1,35 @@
+# Core framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Database
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+aiosqlite==0.20.0
+alembic==1.14.1
+
+# Encryption
+cryptography==44.0.0
+
+# JWT verification
+PyJWT==2.9.0
+
+# HTTP client (for rate scraper, Firebase)
+httpx==0.28.1
+
+# Excel parsing
+openpyxl==3.1.5
+
+# AWS (Bedrock)
+boto3==1.35.86
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+hypothesis==6.119.3
+httpx==0.28.1
+
+# Property-based testing
+hypothesis==6.119.3

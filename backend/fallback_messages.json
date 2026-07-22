@@ -1,0 +1,13 @@
+{
+  "welcome": "¡Hola! Soy Fina, tu asesora de inversiones. Te ayudaré a encontrar la mejor distribución de tu capital. El servicio de IA está temporalmente limitado, pero puedo guiarte con respuestas predefinidas.",
+  "collect_capital": "¿Cuánto capital deseas invertir? Por favor indica el monto en pesos mexicanos.",
+  "collect_risk": "¿Cuál es tu tolerancia al riesgo? Puedes elegir: bajo (low), medio (medium) o alto (high).",
+  "collect_liquidity": "¿Cuál es tu preferencia de liquidez? Opciones: inmediata (immediate), corto-plazo (short-term) o flexible.",
+  "collect_max_instruments": "¿En cuántos instrumentos como máximo deseas distribuir tu inversión? (1 a 10)",
+  "generate_recommendation": "Procesando tu recomendación...",
+  "present_results": "Aquí tienes tu recomendación de inversión.",
+  "follow_up": "¿Qué te gustaría hacer ahora? Puedes ajustar los parámetros (escribe 'ajustar'), hacer preguntas, o terminar (escribe 'terminar').",
+  "terminated": "La sesión ha finalizado. ¡Gracias por usar Fina!",
+  "fallback_tip": "Consejo financiero: Diversifica tus inversiones entre instrumentos de diferente riesgo y liquidez para equilibrar rendimiento y seguridad. Considera destinar al menos el 10% de tus ingresos al ahorro e inversión.",
+  "ai_limited": "El servicio de IA está temporalmente limitado. Usando respuestas predefinidas."
+}

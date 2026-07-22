@@ -1,0 +1,38 @@
+[Unit]
+Description=Finalat Backend - FastAPI Application (Uvicorn)
+After=network.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Finalat/backend
+EnvironmentFile=/home/ubuntu/Finalat/.env
+
+ExecStart=/home/ubuntu/Finalat/venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Process management
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/home/ubuntu/Finalat
+
+# Resource limits
+LimitNOFILE=65535
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=finalat-backend
+
+[Install]
+WantedBy=multi-user.target

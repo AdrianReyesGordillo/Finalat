@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Global focus indicators for keyboard navigation (WCAG 2.1 AA) */
+@layer base {
+  :focus-visible {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+  }
+
+  .dark :focus-visible {
+    outline-color: #818cf8;
+  }
+
+  /* Ensure skip-to-content link is accessible */
+  a[href="#main-content"]:focus {
+    clip: auto;
+    clip-path: none;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    white-space: nowrap;
+  }
+}

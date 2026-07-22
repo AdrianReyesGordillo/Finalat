@@ -1,0 +1,208 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Finalat RDS PostgreSQL 15 database infrastructure.
+  Configures a db.t3.micro (Free Tier) instance with encryption at rest,
+  automated backups, and restricted security group access.
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Deployment environment (dev or production)
+    Default: dev
+    AllowedValues:
+      - dev
+      - production
+
+  DBName:
+    Type: String
+    Description: Name of the PostgreSQL database
+    Default: finalat
+    MinLength: 1
+    MaxLength: 63
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters or underscores.
+
+  DBMasterUsername:
+    Type: String
+    Description: Master username for the database
+    Default: finalat_admin
+    MinLength: 1
+    MaxLength: 63
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters or underscores.
+
+  DBMasterPassword:
+    Type: String
+    Description: Master password for the database (min 8 characters)
+    NoEcho: true
+    MinLength: 8
+    MaxLength: 128
+    ConstraintDescription: Must be at least 8 characters long.
+
+  EC2SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID of the EC2 instance that will connect to this database
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where the RDS instance will be deployed
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs for the DB subnet group (at least 2 in different AZs)
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, 'production']
+
+Resources:
+  # Security Group: Only allow inbound from EC2 security group on port 5432
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Finalat RDS PostgreSQL - allows inbound only from EC2
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref EC2SecurityGroupId
+          Description: Allow PostgreSQL access from EC2 application server only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub 'finalat-db-sg-${Environment}'
+        - Key: Project
+          Value: Finalat
+        - Key: Component
+          Value: Database
+
+  # DB Subnet Group
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub 'Subnet group for Finalat RDS PostgreSQL (${Environment})'
+      SubnetIds: !Ref SubnetIds
+      Tags:
+        - Key: Name
+          Value: !Sub 'finalat-db-subnet-group-${Environment}'
+        - Key: Project
+          Value: Finalat
+
+  # RDS PostgreSQL Instance
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub 'finalat-db-${Environment}'
+      Engine: postgres
+      EngineVersion: '15'
+      DBInstanceClass: !If [IsProduction, 'db.t3.small', 'db.t3.micro']
+      AllocatedStorage: 20
+      MaxAllocatedStorage: 100
+      StorageType: gp3
+      StorageEncrypted: true
+
+      # Database configuration
+      DBName: !Ref DBName
+      MasterUsername: !Ref DBMasterUsername
+      MasterUserPassword: !Ref DBMasterPassword
+      Port: 5432
+
+      # Network configuration
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+      PubliclyAccessible: false
+      MultiAZ: false
+
+      # Backup configuration: automated daily backups with 7-day retention
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: '03:00-04:00'
+      CopyTagsToSnapshot: true
+      DeleteAutomatedBackups: false
+
+      # Maintenance window
+      PreferredMaintenanceWindow: 'sun:05:00-sun:06:00'
+      AutoMinorVersionUpgrade: true
+
+      # Performance and monitoring
+      EnablePerformanceInsights: false
+      MonitoringInterval: 0
+
+      # Parameter group for PostgreSQL 15 tuning
+      DBParameterGroupName: !Ref DatabaseParameterGroup
+
+      # Deletion protection (enabled in production)
+      DeletionProtection: !If [IsProduction, true, false]
+
+      Tags:
+        - Key: Name
+          Value: !Sub 'finalat-db-${Environment}'
+        - Key: Project
+          Value: Finalat
+        - Key: Component
+          Value: Database
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Parameter Group for PostgreSQL 15
+  DatabaseParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Family: postgres15
+      Description: !Sub 'Finalat PostgreSQL 15 parameter group (${Environment})'
+      Parameters:
+        # Force SSL connections
+        rds.force_ssl: '1'
+        # Connection settings
+        max_connections: '100'
+        # Logging (minimal for Free Tier performance)
+        log_min_duration_statement: '1000'
+        log_connections: 'on'
+        log_disconnections: 'on'
+      Tags:
+        - Key: Name
+          Value: !Sub 'finalat-db-params-${Environment}'
+        - Key: Project
+          Value: Finalat
+
+Outputs:
+  DatabaseEndpoint:
+    Description: RDS instance endpoint address
+    Value: !GetAtt DatabaseInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}-Endpoint'
+
+  DatabasePort:
+    Description: RDS instance port
+    Value: !GetAtt DatabaseInstance.Endpoint.Port
+    Export:
+      Name: !Sub '${AWS::StackName}-Port'
+
+  DatabaseName:
+    Description: Database name
+    Value: !Ref DBName
+    Export:
+      Name: !Sub '${AWS::StackName}-DBName'
+
+  DatabaseSecurityGroupId:
+    Description: Security group ID for the database
+    Value: !GetAtt DatabaseSecurityGroup.GroupId
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroupId'
+
+  ConnectionStringFormat:
+    Description: >
+      Connection string format for the application.
+      Replace <password> with the actual master password.
+    Value: !Sub 'postgresql+asyncpg://${DBMasterUsername}:<password>@${DatabaseInstance.Endpoint.Address}:${DatabaseInstance.Endpoint.Port}/${DBName}'
+
+  ConnectionStringSSLFormat:
+    Description: >
+      Connection string format with SSL mode for production.
+      Replace <password> with the actual master password.
+    Value: !Sub 'postgresql+asyncpg://${DBMasterUsername}:<password>@${DatabaseInstance.Endpoint.Address}:${DatabaseInstance.Endpoint.Port}/${DBName}?ssl=require'
