@@ -1,25 +1,157 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@custom-variant dark (&:where(.dark, .dark *));
-
-/* Global focus indicators for keyboard navigation (WCAG 2.1 AA) */
 @layer base {
-  :focus-visible {
-    outline: 2px solid #4f46e5;
-    outline-offset: 2px;
-  }
-
-  .dark :focus-visible {
-    outline-color: #818cf8;
-  }
-
-  /* Ensure skip-to-content link is accessible */
-  a[href="#main-content"]:focus {
-    clip: auto;
-    clip-path: none;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    white-space: nowrap;
+  body {
+    @apply text-gray-800 antialiased font-sans;
   }
 }
+
+/* Custom scrollbar for chat */
+.chat-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: #E0E0F0;
+  border-radius: 4px;
+}
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: #c4c3e0;
+}
+
+/* ============================================================================
+   TEMA OSCURO GLOBAL (toggle del NavBar)
+   ============================================================================ */
+
+html.dark body {
+  background-color: #0f1419;
+  color: #e1e8ed;
+}
+
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    color 0.3s ease, fill 0.3s ease, stroke 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+/* ── Fondos ──────────────────────────────────────────────────────────────── */
+.dark .bg-white { background-color: #15202b; }
+.dark .bg-surface-50 { background-color: #0f1419; }
+.dark .bg-surface-100 { background-color: #15202b; }
+.dark .bg-surface-200 { background-color: #1c2b3a; }
+.dark .bg-gray-50 { background-color: #15202b; }
+.dark .bg-gray-100 { background-color: #1c2b3a; }
+.dark .bg-gray-200 { background-color: #2d3741; }
+
+/* ── Texto ───────────────────────────────────────────────────────────────── */
+.dark .text-gray-800,
+.dark .text-gray-700 { color: #e1e8ed; }
+.dark .text-gray-600 { color: #c3ccd5; }
+.dark .text-gray-500 { color: #98a5b3; }
+.dark .text-gray-400 { color: #7d8b99; }
+.dark .text-gray-300 { color: #6b7886; }
+
+.dark .text-primary-800,
+.dark .text-primary-700 { color: #cdccea; }
+.dark .text-primary-600 { color: #b9b8e2; }
+.dark .text-primary-500 { color: #a6a4d6; }
+.dark .text-primary-400 { color: #b0aed4; }
+.dark .text-primary-300 { color: #c4c3e0; }
+.dark .text-primary-200 { color: #d4d3ec; }
+
+/* ── Bordes ──────────────────────────────────────────────────────────────── */
+.dark .border-surface-200,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-gray-400 { border-color: #2d3741; }
+
+/* ── Estados hover ───────────────────────────────────────────────────────── */
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-50:hover { background-color: #1c2b3a; }
+.dark .hover\:bg-white:hover { background-color: #15202b; }
+.dark .hover\:bg-red-50:hover { background-color: #2a1a1f; }
+.dark .hover\:border-primary-200:hover { border-color: #4a4790; }
+
+/* ── Sombras más sutiles en oscuro ───────────────────────────────────────── */
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+
+/* ── NavBar ──────────────────────────────────────────────────────────────── */
+.dark .nav-link { color: rgba(255, 255, 255, 0.6) !important; }
+.dark .nav-link:hover { color: #ffffff !important; background-color: #1c2b3a; }
+.dark .nav-link.active { color: #ffffff !important; }
+.dark .nav-link.active::after { background-color: #ffffff !important; }
+
+.dark .user-dropdown { background-color: #0f1419 !important; border-color: #2d3741 !important; }
+.dark .user-dropdown .dropdown-item { color: #ffffff !important; }
+.dark .user-dropdown .dropdown-item:hover { background-color: #1c2b3a !important; }
+.dark .user-dropdown .dropdown-item.dropdown-logout { color: #ff6b6b !important; }
+.dark .user-dropdown .dropdown-item.dropdown-logout:hover { background-color: #2a1a1f !important; }
+.dark .user-dropdown .dropdown-email { color: #8899a6 !important; }
+.dark .user-dropdown .dropdown-divider { border-color: #2d3741 !important; }
+
+/* ── Títulos de marca ────────────────────────────────────────────────────── */
+.dark h1.text-\[\#2D2B6B\],
+.dark h2.text-\[\#2D2B6B\],
+.dark h3.text-\[\#2D2B6B\],
+.dark h4.text-\[\#2D2B6B\] {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* ── Chat (Fina) en modo oscuro ──────────────────────────────────────────── */
+.dark .chat-bubble-bot {
+  background-color: #15202b;
+  color: #e1e8ed;
+  border-color: #2d3741;
+}
+
+.dark .chat-bubble-user {
+  background-color: #4f4cc4;
+  color: #ffffff;
+}
+
+.dark .chat-input {
+  background-color: #15202b;
+  color: #e1e8ed;
+  border-color: #2d3741;
+}
+
+.dark .chat-input::placeholder {
+  color: #8899a6;
+}
+
+/* ============================================================================
+   LOGIN / REGISTRO — Siempre en modo claro
+   ============================================================================ */
+.login-force-light,
+.login-force-light * {
+  color-scheme: light;
+}
+
+.dark .login-force-light {
+  background-color: #f8fafc !important;
+  color: #1a2733 !important;
+}
+
+.dark .login-force-light .bg-white { background-color: #ffffff !important; }
+.dark .login-force-light .bg-surface-50 { background-color: #f8fafc !important; }
+.dark .login-force-light .text-primary-700 { color: #2D2B6B !important; }
+.dark .login-force-light .text-primary-600 { color: #3d3a8a !important; }
+.dark .login-force-light .text-primary-400 { color: #7c7aab !important; }
+.dark .login-force-light .text-primary-300 { color: #a3a1c9 !important; }
+.dark .login-force-light .text-primary-800 { color: #1e1c52 !important; }
+.dark .login-force-light .border-surface-200 { border-color: #e5e7eb !important; }
+.dark .login-force-light .hover\:bg-surface-50:hover { background-color: #f8fafc !important; }
+.dark .login-force-light .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important; }
+.dark .login-force-light .bg-red-50 { background-color: #fef2f2 !important; }
+.dark .login-force-light .text-red-600 { color: #dc2626 !important; }
+.dark .login-force-light .border-red-200 { border-color: #fecaca !important; }

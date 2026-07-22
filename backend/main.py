@@ -4,6 +4,7 @@ Middleware order (outermost → innermost):
   CORS → GZip → Security Headers → Rate Limiter → Auth → Request ID → Route Handler
 """
 
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -19,7 +20,7 @@ from backend.config import settings
 from backend.middleware.auth import FirebaseAuthMiddleware
 from backend.middleware.rate_limiter import RateLimiterMiddleware
 from backend.middleware.security_headers import SecurityHeadersMiddleware
-from backend.models.database import create_tables, dispose_engine
+from backend.models.database import create_tables, dispose_engine, async_session
 from backend.utils.response import error_response, validation_error_response
 
 # --- Router imports ---
@@ -37,6 +38,8 @@ from backend.routers.instruments import router as instruments_router
 from backend.routers.courses import router as courses_router
 from backend.routers.advisor import router as advisor_router
 from backend.routers.categories import router as categories_router
+from backend.routers.chat import router as chat_router
+from backend.routers.scrapers import router as scrapers_router
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +49,24 @@ async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
     # Startup: validate encryption key (fail fast if invalid in production)
     from backend.services.encryption import encryption_service  # noqa: F401
+    from backend.services.seed_data import seed_instruments
+    from backend.services.rate_scheduler import scheduler, setup_scheduler, run_initial_sync
 
     if settings.is_sqlite:
         await create_tables()
+
+    # Seed instruments if table is empty
+    async with async_session() as db:
+        await seed_instruments(db)
+
+    # Setup and start the rate scheduler
+    setup_scheduler()
+    scheduler.start()
+
     yield
+
     # Shutdown
+    scheduler.shutdown()
     await dispose_engine()
 
 
@@ -121,6 +137,12 @@ app.include_router(courses_router)
 
 # AI Advisor
 app.include_router(advisor_router)
+
+# Chat (Fina agent)
+app.include_router(chat_router)
+
+# Scrapers (rate sync)
+app.include_router(scrapers_router)
 
 # Update tracker
 app.include_router(update_tracker_router)

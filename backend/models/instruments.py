@@ -20,6 +20,13 @@ class Instrument(Base):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    institution: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="", comment="Institution name (Nu, Ualá, etc.)"
+    )
+    instrument_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="cuenta_ahorro",
+        comment="cuenta_ahorro, cetes, fondo, inversion_fija"
+    )
     annual_rate: Mapped[Decimal] = mapped_column(
         Numeric(8, 4), nullable=False, comment="Annual rate percentage"
     )
@@ -32,6 +39,9 @@ class Instrument(Base):
     term: Mapped[str] = mapped_column(
         String(50), nullable=False, comment="Term in days or 'liquid'"
     )
+    term_days: Mapped[int | None] = mapped_column(
+        nullable=True, comment="Term in days (None for liquid accounts)"
+    )
     risk_level: Mapped[str] = mapped_column(
         String(10), nullable=False, comment="low, medium, or high"
     )
@@ -40,6 +50,12 @@ class Instrument(Base):
     )
     tiered_rates: Mapped[Any | None] = mapped_column(
         JSON, nullable=True, comment="Array of {min_amount, max_amount, rate} objects"
+    )
+    requires_purchase: Mapped[bool] = mapped_column(
+        nullable=False, default=False, comment="Requires card purchase for rate"
+    )
+    conditions: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, comment="Additional conditions text"
     )
     last_fetch_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="success", comment="success or error"

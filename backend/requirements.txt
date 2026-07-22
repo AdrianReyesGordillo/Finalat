@@ -19,6 +19,12 @@ PyJWT==2.9.0
 # HTTP client (for rate scraper, Firebase)
 httpx==0.28.1
 
+# Web scraping
+beautifulsoup4==4.12.3
+
+# Scheduler
+APScheduler==3.10.4
+
 # Excel parsing
 openpyxl==3.1.5
 
