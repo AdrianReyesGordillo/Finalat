@@ -79,7 +79,6 @@ function goToPlan() {
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           <!-- Card: Aprendizaje -->
           <button
-            v-if="showPlan"
             @click="goToLearn"
             class="bg-white rounded-2xl border border-surface-200 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-3 md:p-4 flex flex-col items-center text-center group cursor-pointer"
           >

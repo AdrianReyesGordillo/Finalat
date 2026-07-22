@@ -5,8 +5,8 @@
     <!-- Empty state -->
     <div v-if="!cards.length && !loading" class="empty-state">
       <i class="pi pi-credit-card empty-icon"></i>
-      <h2>Sin tarjetas de crédito configuradas</h2>
-      <p>Ve a <router-link to="/configuracion">Configuración</router-link> para agregar tus tarjetas.</p>
+      <h2>Sin créditos registrados</h2>
+      <p>Aún no tienes créditos registrados. Ve a <router-link to="/configuracion?tab=creditos">Configuración</router-link> para agregar tus tarjetas de crédito.</p>
     </div>
 
     <template v-if="cards.length">
@@ -299,14 +299,17 @@ async function loadCreditos() {
   loading.value = true
   try {
     const response = await cachedGet('/api/creditos')
-    cards.value = response.data.cards
-    totalCredit.value = response.data.summary.totalCredit
-    totalDebt.value = response.data.summary.totalDebt
-    totalAvailable.value = response.data.summary.totalAvailable
-    totalPayment.value = response.data.summary.totalPayment
-    usagePercent.value = response.data.summary.usagePercent
+    const data = response.data?.data || response.data || {}
+    cards.value = data.cards || data.items || []
+    const summary = data.summary || {}
+    totalCredit.value = summary.totalCredit || data.total_balance || 0
+    totalDebt.value = summary.totalDebt || 0
+    totalAvailable.value = summary.totalAvailable || 0
+    totalPayment.value = summary.totalPayment || 0
+    usagePercent.value = summary.usagePercent || 0
   } catch (error) {
     console.error('Error loading credit data:', error)
+    cards.value = []
   } finally {
     loading.value = false
   }

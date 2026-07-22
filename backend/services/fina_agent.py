@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # System Prompt
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """Eres Fina, una asesora financiera inteligente y amigable para usuarios en México. Tu trabajo es ayudar a las personas a encontrar las mejores opciones para hacer crecer su dinero.
+SYSTEM_PROMPT = """Eres Fina, una asesora financiera inteligente y amigable para usuarios en México. Tu trabajo es ayudar a las personas con todo lo relacionado a finanzas personales: desde responder dudas básicas hasta encontrar las mejores opciones para invertir su dinero.
 
 PERSONALIDAD:
 - Eres cálida, directa y profesional
@@ -41,32 +41,42 @@ PERSONALIDAD:
 - Usas español mexicano natural (sin ser demasiado informal)
 - Eres concisa pero clara
 - Nunca uses emojis
+- NUNCA incluyas tus pensamientos internos, razonamiento o planificación en tu respuesta. Solo responde directamente al usuario. No escribas cosas como "El usuario quiere...", "Necesito recopilar...", "Voy a preguntarle..." — eso es pensamiento interno que el usuario NO debe ver.
 
-OBJETIVO:
-Tu meta es entender la situación financiera del usuario para recomendarle la mejor distribución de inversión. Para esto necesitas recopilar:
+LO QUE PUEDES HACER:
+1. **Responder preguntas financieras generales**: inflación, ahorro, presupuesto, deudas, tarjetas de crédito, inversiones, CETES, fondos, acciones, trading, afore, impuestos, etc.
+2. **Asesorar sobre inversiones**: cuando el usuario quiere invertir, recopilas su información y usas las herramientas para recomendar la mejor distribución.
+3. **Recomendar cursos**: cuando la pregunta del usuario se relaciona con un tema que cubren los cursos de la plataforma, usa la herramienta search_courses para buscar contenido relevante y recomiéndalo.
+
+FLUJO PARA INVERSIONES:
+Cuando el usuario quiere invertir, necesitas recopilar:
 1. Su nombre (para personalizar)
-2. Cuánto dinero tiene disponible para invertir (o cuánto puede aportar mensualmente)
+2. Cuánto dinero tiene disponible para invertir
 3. En qué plazo necesita el dinero (corto, mediano, largo)
 4. Su tolerancia al riesgo (conservador, moderado, agresivo)
 5. Si necesita liquidez inmediata o puede dejar el dinero quieto
-6. Si estaría dispuesto a usar una tarjeta de débito/crédito para acceder a mejores tasas
 
-FLUJO:
-- Pregunta de forma conversacional, NO como un formulario
-- Puedes inferir información del contexto (si dice "soy estudiante y tengo 5mil ahorrados", ya tienes el monto)
-- Haz de 1 a 2 preguntas por mensaje, no bombardees al usuario
-- Cuando tengas suficiente información, usa las herramientas para buscar instrumentos y calcular la mejor distribución
-- Presenta los resultados de forma clara y amigable, explicando por qué cada instrumento fue elegido
+Pregunta de forma conversacional, NO como un formulario. Cuando tengas suficiente información, usa las herramientas para buscar instrumentos y calcular la mejor distribución.
 
-REGLAS DE NEGOCIO:
+FLUJO PARA PREGUNTAS GENERALES:
+- Si el usuario hace una pregunta financiera (ej: "¿qué es un ETF?", "¿cómo funciona una tarjeta de crédito?", "¿debería pagar mi deuda primero?"), respóndela directamente con tu conocimiento.
+- Después de responder, usa search_courses para ver si hay un curso relacionado y sugiérelo naturalmente al final. Ejemplo: "Si quieres profundizar en este tema, tenemos un curso de Renta Variable donde lo explicamos a detalle."
+- No fuerces la recomendación de cursos si no hay uno relevante.
+
+REGLAS:
 - Solo hablas de finanzas personales en México
-- Si preguntan sobre otro tema, redirige amablemente a finanzas
+- Si preguntan sobre otro tema completamente ajeno (política, deportes, etc.), redirige amablemente a finanzas
 - Las tasas son referenciales y pueden variar
 - Nunca prometas rendimientos garantizados
 - Si el usuario no tiene claro el plazo o riesgo, ayúdalo con ejemplos prácticos
+- Los niveles de riesgo disponibles son: "low" (conservador), "medium" (moderado) y "high" (agresivo)
+- Para liquidez usa: "immediate", "short-term", "flexible"
 
 HERRAMIENTAS:
-Tienes acceso a herramientas para consultar instrumentos financieros disponibles y calcular la distribución óptima. Úsalas cuando tengas la información necesaria del usuario."""
+Tienes acceso a herramientas para:
+- Consultar instrumentos financieros disponibles
+- Calcular la distribución óptima de inversión
+- Buscar cursos educativos relevantes para recomendar al usuario"""
 
 # ---------------------------------------------------------------------------
 # Tool Definitions (Bedrock Converse toolConfig format)
@@ -124,6 +134,24 @@ TOOL_DEFINITIONS = [
             },
         }
     },
+    {
+        "toolSpec": {
+            "name": "search_courses",
+            "description": "Busca cursos y lecciones educativas disponibles en la plataforma que sean relevantes para el tema que el usuario pregunta. Úsala para recomendar contenido educativo cuando el usuario tiene dudas sobre un tema financiero.",
+            "inputSchema": {
+                "json": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Tema o palabras clave para buscar cursos relevantes. Ejemplos: 'renta variable', 'tarjeta de crédito', 'CETES', 'trading', 'fondo de emergencia', 'diversificación'.",
+                        }
+                    },
+                    "required": ["query"],
+                }
+            },
+        }
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -132,9 +160,10 @@ TOOL_DEFINITIONS = [
 
 GREETING = (
     "Hola, soy **Fina**, tu asesora financiera. "
-    "Estoy aquí para ayudarte a encontrar las mejores opciones "
-    "para hacer crecer tu dinero en México.\n\n"
-    "Para empezar, ¿cómo te llamas y qué te trae por aquí?"
+    "Puedo ayudarte a encontrar dónde invertir tu dinero, "
+    "resolver tus dudas sobre finanzas personales, "
+    "o recomendarte cursos para aprender más.\n\n"
+    "¿En qué te puedo ayudar hoy?"
 )
 
 # ---------------------------------------------------------------------------
@@ -161,6 +190,8 @@ async def _execute_tool(
         return await _tool_get_instruments(tool_input, db)
     elif tool_name == "calculate_optimal_distribution":
         return await _tool_calculate_distribution(tool_input, db)
+    elif tool_name == "search_courses":
+        return await _tool_search_courses(tool_input, db)
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
@@ -192,6 +223,79 @@ async def _tool_get_instruments(params: dict, db: AsyncSession) -> dict:
         })
 
     return {"instruments": data, "count": len(data)}
+
+
+async def _tool_search_courses(params: dict, db: AsyncSession) -> dict:
+    """Search courses and lessons by keyword relevance.
+
+    Searches course titles/descriptions and lesson titles to find
+    content related to the user's question.
+    """
+    from backend.models.courses import Course, Lesson
+
+    query = params.get("query", "").lower().strip()
+    if not query:
+        return {"courses": [], "message": "No se proporcionó un tema de búsqueda."}
+
+    # Split query into keywords for matching
+    keywords = [kw for kw in query.split() if len(kw) > 2]
+
+    # Fetch all courses with their lessons
+    stmt = select(Course).order_by(Course.sort_order.asc())
+    result = await db.execute(stmt)
+    courses = result.scalars().all()
+
+    matching_courses = []
+
+    for course in courses:
+        # Check course-level match
+        course_text = f"{course.title} {course.description}".lower()
+        course_score = sum(1 for kw in keywords if kw in course_text)
+
+        # Get lessons for this course
+        lessons_stmt = (
+            select(Lesson)
+            .where(Lesson.course_id == course.id)
+            .order_by(Lesson.sort_order.asc())
+        )
+        lessons_result = await db.execute(lessons_stmt)
+        lessons = lessons_result.scalars().all()
+
+        matching_lessons = []
+        for lesson in lessons:
+            lesson_text = f"{lesson.title}".lower()
+            lesson_score = sum(1 for kw in keywords if kw in lesson_text)
+            if lesson_score > 0:
+                matching_lessons.append({
+                    "id": lesson.id,
+                    "title": lesson.title,
+                    "relevance": lesson_score,
+                })
+
+        total_score = course_score + sum(l["relevance"] for l in matching_lessons)
+
+        if total_score > 0:
+            matching_courses.append({
+                "course_id": course.id,
+                "course_title": course.title,
+                "course_description": course.description,
+                "relevance_score": total_score,
+                "matching_lessons": sorted(
+                    matching_lessons, key=lambda x: x["relevance"], reverse=True
+                )[:3],
+                "url": f"/aprende/{course.id}",
+            })
+
+    # Sort by relevance
+    matching_courses.sort(key=lambda x: x["relevance_score"], reverse=True)
+
+    if not matching_courses:
+        return {"courses": [], "message": "No se encontraron cursos relacionados con ese tema."}
+
+    return {
+        "courses": matching_courses[:3],
+        "message": f"Se encontraron {len(matching_courses)} cursos relacionados.",
+    }
 
 
 async def _tool_calculate_distribution(params: dict, db: AsyncSession) -> dict:
@@ -327,6 +431,64 @@ def _parse_response(response: dict) -> tuple[str | None, list[dict]]:
     return text, tool_calls
 
 
+def _strip_thinking(text: str) -> str:
+    """Remove chain-of-thought / internal reasoning from the model's response.
+
+    Some models output their reasoning before the actual user-facing response.
+    Common patterns:
+    - Starts with phrases like "El usuario...", "Ahora que sé...", "Voy a...", "Necesito..."
+    - The actual response follows after a blank line or newline.
+
+    This function detects and strips the thinking portion.
+    """
+    if not text:
+        return text
+
+    lines = text.strip().split("\n")
+
+    # Patterns that indicate internal thinking (not user-facing)
+    thinking_patterns = [
+        "el usuario", "la usuario", "ahora que sé", "ahora que se",
+        "voy a pregunt", "necesito recopil", "necesito pregunt",
+        "primero le pedir", "primero voy", "ahora preguntaré",
+        "ya sé cuánto", "ya se cuanto", "ya tengo la información",
+        "debo pregunt", "tengo que pregunt", "voy a recomend",
+        "ya sé el nombre", "ya se el nombre", "ahora le pregunt",
+        "el siguiente paso", "ya recopilé", "ya recopile",
+    ]
+
+    # Find the first line that doesn't look like thinking
+    clean_lines = []
+    found_real_response = False
+
+    for i, line in enumerate(lines):
+        stripped = line.strip().lower()
+
+        if not found_real_response:
+            # Skip empty lines before finding real content
+            if not stripped:
+                continue
+
+            # Check if this line starts with a thinking pattern
+            is_thinking = any(stripped.startswith(p) for p in thinking_patterns)
+
+            if is_thinking:
+                continue  # Skip this thinking line
+            else:
+                found_real_response = True
+                clean_lines.append(line)
+        else:
+            clean_lines.append(line)
+
+    result = "\n".join(clean_lines).strip()
+
+    # If we accidentally stripped everything, return original
+    if not result:
+        return text.strip()
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Main Agent Function
 # ---------------------------------------------------------------------------
@@ -377,7 +539,7 @@ async def fina_chat(
 
             # If no tool calls, we're done — return the text
             if not tool_calls:
-                final_text = text_content or "Lo siento, no pude generar una respuesta."
+                final_text = _strip_thinking(text_content or "Lo siento, no pude generar una respuesta.")
                 latency_ms = (time.time() - start_time) * 1000
                 logger.info(
                     "Fina agent completed",
@@ -420,7 +582,7 @@ async def fina_chat(
             messages.append({"role": "user", "content": tool_results_content})
 
         # If we exhausted iterations, return whatever text we have
-        final_text = text_content or "Ya tengo la información. Permíteme un momento para procesarla."
+        final_text = _strip_thinking(text_content or "Ya tengo la información. Permíteme un momento para procesarla.")
         return final_text, investment_result
 
     except asyncio.TimeoutError:

@@ -6,7 +6,7 @@
     <div v-if="!categories.length && !loading" class="empty-state">
       <i class="pi pi-calendar empty-icon"></i>
       <h2>Sin aportaciones configuradas</h2>
-      <p>Ve a <router-link to="/configuracion">Configuración</router-link> para crear tus aportaciones.</p>
+      <p>Ve a <router-link to="/configuracion?tab=aportaciones">Configuración</router-link> para crear tus aportaciones.</p>
     </div>
 
     <!-- Content -->

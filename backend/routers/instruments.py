@@ -67,16 +67,25 @@ def _instrument_to_dict(instrument: Instrument) -> dict:
     return {
         "id": instrument.id,
         "name": instrument.name,
+        "institution": instrument.institution,
+        "instrument_type": instrument.instrument_type,
         "annual_rate": float(instrument.annual_rate),
+        "min_amount": float(instrument.min_investment),
         "min_investment": float(instrument.min_investment),
+        "max_amount_for_rate": float(instrument.max_investment) if instrument.max_investment is not None else None,
         "max_investment": float(instrument.max_investment) if instrument.max_investment is not None else None,
         "term": instrument.term,
+        "term_days": instrument.term_days,
         "risk_level": instrument.risk_level,
         "liquidity_tier": instrument.liquidity_tier,
         "tiered_rates": instrument.tiered_rates,
+        "requires_purchase": instrument.requires_purchase,
+        "conditions": instrument.conditions,
         "last_fetch_status": instrument.last_fetch_status,
         "last_fetched_at": instrument.last_fetched_at.isoformat() if instrument.last_fetched_at else None,
+        "last_updated": instrument.updated_at.isoformat() if instrument.updated_at else None,
         "stale": stale,
+        "is_active": True,
         "created_at": instrument.created_at.isoformat() if instrument.created_at else None,
         "updated_at": instrument.updated_at.isoformat() if instrument.updated_at else None,
     }
@@ -115,6 +124,7 @@ async def list_instruments(
     db: AsyncSession = Depends(get_db),
     risk_level: Optional[str] = Query(None, description="Filter by risk level: low, medium, high"),
     liquidity_tier: Optional[str] = Query(None, description="Filter by liquidity tier: immediate, 1-day, 28-day, custom"),
+    instrument_type: Optional[str] = Query(None, description="Filter by instrument type: cuenta_ahorro, cetes, fondo, inversion_fija"),
     include_errors: bool = Query(False, description="Include instruments with fetch errors"),
 ):
     """List all instruments with current rates.
@@ -163,6 +173,9 @@ async def list_instruments(
                 ),
             )
         stmt = stmt.where(Instrument.liquidity_tier == liquidity_tier.lower())
+
+    if instrument_type:
+        stmt = stmt.where(Instrument.instrument_type == instrument_type)
 
     # Order by annual_rate descending (best rates first)
     stmt = stmt.order_by(Instrument.annual_rate.desc())

@@ -11,15 +11,13 @@ Series utilizadas:
 """
 
 import httpx
-import os
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-from dotenv import load_dotenv
 
-load_dotenv()
+from backend.config import settings
 
-BMX_TOKEN = os.getenv("BMX_TOKEN", "")
+BMX_TOKEN = settings.BMX_TOKEN
 BMX_BASE_URL = "https://www.banxico.org.mx/SieAPIRest/service/v1"
 
 # Series de CETES por plazo

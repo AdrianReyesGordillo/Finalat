@@ -34,7 +34,8 @@ export const useAuthStore = defineStore('auth', () => {
           try {
             const token = await firebaseUser.getIdToken()
             const apiUrl = import.meta.env.VITE_API_URL || ''
-            const subRes = await fetch(`${apiUrl}/api/subscription`, {
+            const baseUrl = apiUrl.replace(/\/api$/, '')
+            const subRes = await fetch(`${baseUrl}/api/subscription`, {
               headers: { Authorization: `Bearer ${token}` },
             })
             if (subRes.ok) {
