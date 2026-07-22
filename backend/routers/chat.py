@@ -112,8 +112,16 @@ async def send_message(
     state["messages"] = history
 
     # Determine if the conversation produced a final result
-    completed = investment_result is not None
-    redirect_to = "results" if completed else None
+    # NOTE: We intentionally do NOT set completed=True or redirect_to
+    # because the agent presents results as part of the conversation text.
+    # This keeps the user in the chat flow for follow-up questions.
+    completed = False
+    redirect_to = None
+
+    logger.info(
+        "Chat response: has_optimizer_result=%s, msg_len=%d",
+        investment_result is not None, len(assistant_text),
+    )
 
     return ChatMessageResponse(
         assistant_message=assistant_text,

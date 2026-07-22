@@ -9,7 +9,7 @@ import axios from 'axios'
 import { auth } from '@/firebase'
 
 const finApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '',
+  baseURL: (import.meta.env.VITE_API_URL || '').replace(/\/api$/, ''),
   headers: {
     'Content-Type': 'application/json',
   },

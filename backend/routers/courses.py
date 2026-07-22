@@ -11,7 +11,9 @@ Requirements: 18.1, 18.2, 18.3, 18.4, 18.5
 """
 
 import logging
+import time
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -30,6 +32,58 @@ from backend.utils.response import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
+
+
+# ---------------------------------------------------------------------------
+# In-memory cache for static course/lesson content (rarely changes)
+# TTL: 1 hour. These are educational content that only change on redeploy.
+# ---------------------------------------------------------------------------
+
+_CACHE_TTL = 3600  # 1 hour
+
+
+class _ContentCache:
+    """Simple TTL cache for course catalog and lesson content."""
+
+    def __init__(self) -> None:
+        self._courses_list: list[dict] | None = None
+        self._courses_ts: float = 0.0
+        self._course_lessons: dict[str, dict[str, Any]] = {}
+        self._course_lessons_ts: dict[str, float] = {}
+        self._lesson_content: dict[str, dict[str, Any]] = {}
+        self._lesson_content_ts: dict[str, float] = {}
+
+    def get_courses(self) -> list[dict] | None:
+        if self._courses_list and (time.time() - self._courses_ts) < _CACHE_TTL:
+            return self._courses_list
+        return None
+
+    def set_courses(self, data: list[dict]) -> None:
+        self._courses_list = data
+        self._courses_ts = time.time()
+
+    def get_course_lessons(self, course_id: str) -> dict[str, Any] | None:
+        ts = self._course_lessons_ts.get(course_id, 0.0)
+        if course_id in self._course_lessons and (time.time() - ts) < _CACHE_TTL:
+            return self._course_lessons[course_id]
+        return None
+
+    def set_course_lessons(self, course_id: str, data: dict[str, Any]) -> None:
+        self._course_lessons[course_id] = data
+        self._course_lessons_ts[course_id] = time.time()
+
+    def get_lesson(self, lesson_key: str) -> dict[str, Any] | None:
+        ts = self._lesson_content_ts.get(lesson_key, 0.0)
+        if lesson_key in self._lesson_content and (time.time() - ts) < _CACHE_TTL:
+            return self._lesson_content[lesson_key]
+        return None
+
+    def set_lesson(self, lesson_key: str, data: dict[str, Any]) -> None:
+        self._lesson_content[lesson_key] = data
+        self._lesson_content_ts[lesson_key] = time.time()
+
+
+_cache = _ContentCache()
 
 
 # ---------------------------------------------------------------------------
@@ -58,8 +112,13 @@ async def list_courses(
     """List all courses with lesson count and sort_order.
 
     This is a public endpoint — no authentication required.
-    Returns courses sorted by sort_order.
+    Returns courses sorted by sort_order. Cached for fast response.
     """
+    # Try cache first
+    cached = _cache.get_courses()
+    if cached is not None:
+        return JSONResponse(status_code=200, content=success_response(cached))
+
     stmt = select(Course).order_by(Course.sort_order.asc())
     result = await db.execute(stmt)
     courses = result.scalars().all()
@@ -76,6 +135,7 @@ async def list_courses(
             "updated_at": course.updated_at.isoformat() if course.updated_at else None,
         })
 
+    _cache.set_courses(items)
     return JSONResponse(status_code=200, content=success_response(items))
 
 
@@ -150,8 +210,13 @@ async def list_course_lessons(
     """List lessons for a course.
 
     This is a public endpoint — no authentication required.
-    Returns lessons sorted by sort_order.
+    Returns lessons sorted by sort_order. Cached for fast response.
     """
+    # Try cache first
+    cached = _cache.get_course_lessons(course_id)
+    if cached is not None:
+        return JSONResponse(status_code=200, content=success_response(cached))
+
     # Verify the course exists
     course_stmt = select(Course).where(Course.id == course_id)
     course_result = await db.execute(course_stmt)
@@ -183,14 +248,17 @@ async def list_course_lessons(
             "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
         })
 
-    return JSONResponse(status_code=200, content=success_response({
+    response_data = {
         "course": {
             "id": course.id,
             "title": course.title,
             "description": course.description,
         },
         "lessons": items,
-    }))
+    }
+
+    _cache.set_course_lessons(course_id, response_data)
+    return JSONResponse(status_code=200, content=success_response(response_data))
 
 
 @router.get("/{course_id}/lessons/{lesson_id}")
@@ -203,6 +271,7 @@ async def get_lesson(
     """Get single lesson content.
 
     Requires authentication to access lesson content.
+    Lesson content is cached; user progress is fetched per-request.
     """
     user_id = getattr(request.state, "user_id", None)
     if not user_id:
@@ -211,32 +280,48 @@ async def get_lesson(
             content=unauthorized_response("Authentication required to access lesson content."),
         )
 
-    # Verify the course exists
-    course_stmt = select(Course).where(Course.id == course_id)
-    course_result = await db.execute(course_stmt)
-    course = course_result.scalar_one_or_none()
+    # Try to get lesson static content from cache
+    lesson_key = f"{course_id}:{lesson_id}"
+    cached_lesson = _cache.get_lesson(lesson_key)
 
-    if not course:
-        return JSONResponse(
-            status_code=404,
-            content=not_found_response("Course not found."),
+    if cached_lesson is None:
+        # Verify the course exists
+        course_stmt = select(Course).where(Course.id == course_id)
+        course_result = await db.execute(course_stmt)
+        course = course_result.scalar_one_or_none()
+
+        if not course:
+            return JSONResponse(
+                status_code=404,
+                content=not_found_response("Course not found."),
+            )
+
+        # Get the lesson
+        lesson_stmt = select(Lesson).where(
+            Lesson.id == lesson_id,
+            Lesson.course_id == course_id,
         )
+        lesson_result = await db.execute(lesson_stmt)
+        lesson = lesson_result.scalar_one_or_none()
 
-    # Get the lesson
-    lesson_stmt = select(Lesson).where(
-        Lesson.id == lesson_id,
-        Lesson.course_id == course_id,
-    )
-    lesson_result = await db.execute(lesson_stmt)
-    lesson = lesson_result.scalar_one_or_none()
+        if not lesson:
+            return JSONResponse(
+                status_code=404,
+                content=not_found_response("Lesson not found."),
+            )
 
-    if not lesson:
-        return JSONResponse(
-            status_code=404,
-            content=not_found_response("Lesson not found."),
-        )
+        cached_lesson = {
+            "id": lesson.id,
+            "course_id": lesson.course_id,
+            "title": lesson.title,
+            "content": lesson.content,
+            "sort_order": lesson.sort_order,
+            "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
+            "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
+        }
+        _cache.set_lesson(lesson_key, cached_lesson)
 
-    # Check if the user has completed this lesson
+    # Fetch user-specific progress (not cached — per-user)
     progress_stmt = select(LessonProgress).where(
         LessonProgress.user_id == user_id,
         LessonProgress.lesson_id == lesson_id,
@@ -244,48 +329,12 @@ async def get_lesson(
     progress_result = await db.execute(progress_stmt)
     progress = progress_result.scalar_one_or_none()
 
-    # Check if prior lessons are not completed (provide recommendation)
-    prior_lessons_stmt = (
-        select(Lesson)
-        .where(
-            Lesson.course_id == course_id,
-            Lesson.sort_order < lesson.sort_order,
-        )
-        .order_by(Lesson.sort_order.asc())
-    )
-    prior_result = await db.execute(prior_lessons_stmt)
-    prior_lessons = prior_result.scalars().all()
-
-    has_incomplete_prior = False
-    if prior_lessons:
-        prior_lesson_ids = [l.id for l in prior_lessons]
-        completed_prior_stmt = (
-            select(func.count(LessonProgress.id))
-            .where(
-                LessonProgress.user_id == user_id,
-                LessonProgress.lesson_id.in_(prior_lesson_ids),
-                LessonProgress.completed == True,
-            )
-        )
-        completed_prior_result = await db.execute(completed_prior_stmt)
-        completed_prior_count = completed_prior_result.scalar() or 0
-        has_incomplete_prior = completed_prior_count < len(prior_lesson_ids)
-
+    # Build response merging cached content + user progress
     lesson_data = {
-        "id": lesson.id,
-        "course_id": lesson.course_id,
-        "title": lesson.title,
-        "content": lesson.content,
-        "sort_order": lesson.sort_order,
+        **cached_lesson,
         "completed": progress.completed if progress else False,
         "completed_at": progress.completed_at.isoformat() if progress and progress.completed_at else None,
-        "recommendation": (
-            "Se recomienda completar las lecciones anteriores primero."
-            if has_incomplete_prior
-            else None
-        ),
-        "created_at": lesson.created_at.isoformat() if lesson.created_at else None,
-        "updated_at": lesson.updated_at.isoformat() if lesson.updated_at else None,
+        "recommendation": None,
     }
 
     return JSONResponse(status_code=200, content=success_response(lesson_data))

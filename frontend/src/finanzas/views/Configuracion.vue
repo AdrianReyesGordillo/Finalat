@@ -435,15 +435,19 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import finApi from '../utils/api'
 import { cachedGet } from '../utils/cache'
 import { usePreferencesStore } from '../stores/preferences'
 import { useThemeStore } from '@/stores/theme'
 
+const route = useRoute()
 const prefsStore = usePreferencesStore()
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.mode === 'dark')
-const activeTab = ref('paneles')
+const validTabs = ['paneles', 'ahorro', 'creditos', 'aportaciones']
+const initialTab = validTabs.includes(route.query.tab) ? route.query.tab : 'paneles'
+const activeTab = ref(initialTab)
 const saving = ref(false)
 const showInversionesModal = ref(false)
 const showGICategoriasModal = ref(false)

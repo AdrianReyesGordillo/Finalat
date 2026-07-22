@@ -15,8 +15,8 @@ const route = useRoute()
 const navItems = computed(() => {
   return [
     { label: 'Home', path: '/', icon: 'home' },
-    { label: 'Agente', path: '/agente', icon: 'agent' },
     { label: 'Cursos', path: '/aprende', icon: 'courses' },
+    { label: 'Agente', path: '/agente', icon: 'agent' },
     { label: 'Dashboard', path: '/finanzas', icon: 'dashboard' },
   ]
 })
