@@ -70,7 +70,7 @@ export async function getTasaObjetivo() {
  */
 export async function syncTasasNu(): Promise<{ synced: boolean; message: string; vigencia?: string }> {
   try {
-    const response = await api.post('/scrapers/sync-all')
+    await api.post('/scrapers/sync-all')
     return { synced: true, message: 'Synced' }
   } catch (err: any) {
     return { synced: false, message: 'No se pudieron sincronizar las tasas de Nu' }

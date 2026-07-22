@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 
-const props = defineProps<{
+defineProps<{
   sidebarOpen?: boolean
 }>()
 

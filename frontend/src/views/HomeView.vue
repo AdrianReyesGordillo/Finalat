@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
 import { getChatGreeting, sendChatMessage, type ChatState, type ChatResponse } from '@/services/api'
-import { useCourseStore } from '@/stores/course'
 import AdBanner from '@/components/AdBanner.vue'
-
-const router = useRouter()
-const courseStore = useCourseStore()
 
 interface DisplayMessage {
   role: 'user' | 'assistant'
