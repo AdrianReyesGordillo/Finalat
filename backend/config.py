@@ -35,6 +35,12 @@ class Settings(BaseSettings):
         description="Firebase Web API key.",
     )
 
+    # Banxico API
+    BMX_TOKEN: str = Field(
+        default="",
+        description="Banco de México SIE API token for CETES rates.",
+    )
+
     # AWS / Bedrock
     AWS_REGION: str = Field(
         default="us-east-1",
@@ -49,7 +55,7 @@ class Settings(BaseSettings):
         description="AWS secret access key.",
     )
     BEDROCK_MODEL_ID: str = Field(
-        default="anthropic.claude-3-sonnet-20240229-v1:0",
+        default="amazon.nova-pro-v1:0",
         description="Amazon Bedrock model identifier.",
     )
 

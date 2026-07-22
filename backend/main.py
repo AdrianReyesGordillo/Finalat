@@ -40,6 +40,7 @@ from backend.routers.advisor import router as advisor_router
 from backend.routers.categories import router as categories_router
 from backend.routers.chat import router as chat_router
 from backend.routers.scrapers import router as scrapers_router
+from backend.routers.finanzas import router as finanzas_router
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI):
     from backend.services.encryption import encryption_service  # noqa: F401
     from backend.services.seed_data import seed_instruments
     from backend.services.rate_scheduler import scheduler, setup_scheduler, run_initial_sync
+    from backend.seed_courses import seed_courses
 
     if settings.is_sqlite:
         await create_tables()
@@ -58,6 +60,9 @@ async def lifespan(app: FastAPI):
     # Seed instruments if table is empty
     async with async_session() as db:
         await seed_instruments(db)
+
+    # Seed courses if table is empty
+    await seed_courses()
 
     # Setup and start the rate scheduler
     setup_scheduler()
@@ -143,6 +148,9 @@ app.include_router(chat_router)
 
 # Scrapers (rate sync)
 app.include_router(scrapers_router)
+
+# Finanzas dashboard
+app.include_router(finanzas_router)
 
 # Update tracker
 app.include_router(update_tracker_router)

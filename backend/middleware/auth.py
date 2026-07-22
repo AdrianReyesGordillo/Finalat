@@ -31,7 +31,11 @@ PUBLIC_PATHS = {
     "/api/auth/register",
     "/api/health",
     "/api/chat/greeting",
+    "/api/subscription",
+    "/api/preferences",
     "/api/scrapers/status",
+    "/api/scrapers/sync-all",
+    "/api/scrapers/sync-banxico",
     "/api/scrapers/banxico/tasas-cetes",
     "/api/scrapers/banxico/tasa-objetivo",
     "/docs",
@@ -207,9 +211,13 @@ async def verify_firebase_token(token: str) -> Optional[str]:
 
         return sub
 
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, jwt.DecodeError):
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, jwt.DecodeError) as e:
+        import logging
+        logging.getLogger(__name__).warning("Token verification failed: %s: %s", type(e).__name__, str(e))
         return None
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Token verification unexpected error: %s: %s", type(e).__name__, str(e))
         return None
 
 

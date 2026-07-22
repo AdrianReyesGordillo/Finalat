@@ -1,41 +1,69 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMultiCourseStore } from '@/stores/multiCourse'
-import { COURSES } from '@/data/courses'
+import { getCourses, getCoursesProgress, type CourseItem, type CourseProgress } from '@/services/api'
 
 const router = useRouter()
-const store = useMultiCourseStore()
 
-onMounted(async () => {
-  if (store.loading) {
-    await store.loadProgress()
-  }
-  // Migrate old progress if needed
-  const migrated = localStorage.getItem('learn_progress_migrated')
-  if (!migrated && localStorage.getItem('learn_progress')) {
-    await store.migrateOldProgress()
-  }
-})
+const courses = ref<CourseItem[]>([])
+const progress = ref<CourseProgress[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
 
-function openCourse(courseId: string) {
-  if (!store.isCourseStarted(courseId)) {
-    store.startCourse(courseId)
-  }
-  router.push(`/aprende/${courseId}`)
+// Icon and color mapping for visual decoration (kept from original design)
+const courseVisuals: Record<string, { icon: string; color: string }> = {
+  'finanzas-personales': { icon: 'pi-wallet', color: '#2AAFAA' },
+  'renta-fija-variable': { icon: 'pi-chart-bar', color: '#6366f1' },
+  'fundamentos-trading': { icon: 'pi-chart-line', color: '#f59e0b' },
+}
+
+function getVisual(courseId: string) {
+  return courseVisuals[courseId] || { icon: 'pi-book', color: '#6b7280' }
+}
+
+function getProgressForCourse(courseId: string): CourseProgress | undefined {
+  return progress.value.find(p => p.course_id === courseId)
 }
 
 function getCourseStatus(courseId: string): string {
-  if (store.isCourseCompleted(courseId)) return 'Completado'
-  if (store.isCourseStarted(courseId)) return 'En progreso'
+  const p = getProgressForCourse(courseId)
+  if (!p) return 'Comenzar'
+  if (p.progress_percentage >= 100) return 'Completado'
+  if (p.completed_lessons > 0) return 'En progreso'
   return 'Comenzar'
 }
 
 function getCourseStatusClass(courseId: string): string {
-  if (store.isCourseCompleted(courseId)) return 'status-completed'
-  if (store.isCourseStarted(courseId)) return 'status-progress'
+  const status = getCourseStatus(courseId)
+  if (status === 'Completado') return 'status-completed'
+  if (status === 'En progreso') return 'status-progress'
   return 'status-new'
 }
+
+function getProgressPercent(courseId: string): number {
+  const p = getProgressForCourse(courseId)
+  return p ? Math.round(p.progress_percentage) : 0
+}
+
+function openCourse(courseId: string) {
+  router.push(`/aprende/${courseId}`)
+}
+
+onMounted(async () => {
+  try {
+    // Fetch both in parallel for fastest load
+    const [coursesData, progressData] = await Promise.all([
+      getCourses(),
+      getCoursesProgress().catch(() => [] as CourseProgress[]),
+    ])
+    courses.value = coursesData
+    progress.value = progressData
+  } catch (e: any) {
+    error.value = e.message || 'Error al cargar cursos.'
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
@@ -43,17 +71,21 @@ function getCourseStatusClass(courseId: string): string {
     <div class="catalog-header">
       <h1 class="catalog-title">Aprendizaje</h1>
       <p class="catalog-subtitle">
-        Cursos diseñados para que domines tus finanzas personales a tu propio ritmo. Puedes tomar varios cursos a la vez.
+        Cursos diseñados para que domines tus finanzas personales a tu propio ritmo.
       </p>
     </div>
 
-    <div v-if="store.loading" class="catalog-loading">
+    <div v-if="loading" class="catalog-loading">
       <div class="spinner"></div>
+    </div>
+
+    <div v-else-if="error" class="catalog-error">
+      <p>{{ error }}</p>
     </div>
 
     <div v-else class="courses-grid">
       <div
-        v-for="course in COURSES"
+        v-for="course in courses"
         :key="course.id"
         class="course-card"
         @click="openCourse(course.id)"
@@ -62,14 +94,14 @@ function getCourseStatusClass(courseId: string): string {
         <div class="course-progress-bar">
           <div
             class="course-progress-fill"
-            :style="{ width: store.courseProgressPercent(course.id) + '%', backgroundColor: course.color }"
+            :style="{ width: getProgressPercent(course.id) + '%', backgroundColor: getVisual(course.id).color }"
           ></div>
         </div>
 
         <div class="course-card-body">
           <!-- Icon -->
-          <div class="course-icon" :style="{ backgroundColor: course.color + '18' }">
-            <i :class="'pi ' + course.icon" :style="{ color: course.color }"></i>
+          <div class="course-icon" :style="{ backgroundColor: getVisual(course.id).color + '18' }">
+            <i :class="'pi ' + getVisual(course.id).icon" :style="{ color: getVisual(course.id).color }"></i>
           </div>
 
           <!-- Content -->
@@ -80,24 +112,20 @@ function getCourseStatusClass(courseId: string): string {
             <div class="course-meta">
               <span class="course-lessons-count">
                 <i class="pi pi-book"></i>
-                {{ course.lessons.length }} lecciones
-              </span>
-              <span class="course-tests-count">
-                <i class="pi pi-check-circle"></i>
-                {{ course.testSections.length }} evaluaciones
+                {{ course.lesson_count }} lecciones
               </span>
             </div>
           </div>
 
           <!-- Status / CTA -->
           <div class="course-footer">
-            <div class="course-progress-text" v-if="store.isCourseStarted(course.id) && !store.isCourseCompleted(course.id)">
-              {{ store.courseProgressPercent(course.id) }}% completado
+            <div class="course-progress-text" v-if="getProgressPercent(course.id) > 0 && getProgressPercent(course.id) < 100">
+              {{ getProgressPercent(course.id) }}% completado
             </div>
 
             <button class="course-btn" :class="getCourseStatusClass(course.id)">
-              <i v-if="store.isCourseCompleted(course.id)" class="pi pi-check"></i>
-              <i v-else-if="store.isCourseStarted(course.id)" class="pi pi-play"></i>
+              <i v-if="getCourseStatus(course.id) === 'Completado'" class="pi pi-check"></i>
+              <i v-else-if="getCourseStatus(course.id) === 'En progreso'" class="pi pi-play"></i>
               <i v-else class="pi pi-arrow-right"></i>
               {{ getCourseStatus(course.id) }}
             </button>
@@ -136,6 +164,12 @@ function getCourseStatusClass(courseId: string): string {
   display: flex;
   justify-content: center;
   padding: 4rem 0;
+}
+
+.catalog-error {
+  text-align: center;
+  color: #dc2626;
+  padding: 2rem 0;
 }
 
 .spinner {
@@ -222,8 +256,7 @@ function getCourseStatusClass(courseId: string): string {
   margin-bottom: 1rem;
 }
 
-.course-lessons-count,
-.course-tests-count {
+.course-lessons-count {
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -292,77 +325,21 @@ function getCourseStatusClass(courseId: string): string {
   .course-card-body {
     padding: 1.25rem;
   }
-
-  .course-meta {
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
 }
 
-/* ── Dark mode ───────────────────────────────────────────────────────────── */
-:global(html.dark) .catalog-title {
-  color: #e1e8ed;
-}
-
-:global(html.dark) .catalog-subtitle {
-  color: #98a5b3;
-}
-
-:global(html.dark) .spinner {
-  border-color: #2d3741;
-  border-top-color: #cdccea;
-}
-
-:global(html.dark) .course-card {
-  background: #15202b;
-  border-color: #2d3741;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-:global(html.dark) .course-card:hover {
-  border-color: #3d4f5f;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-:global(html.dark) .course-progress-bar {
-  background: #1c2b3a;
-}
-
-:global(html.dark) .course-title {
-  color: #e1e8ed;
-}
-
-:global(html.dark) .course-description {
-  color: #98a5b3;
-}
-
-:global(html.dark) .course-lessons-count,
-:global(html.dark) .course-tests-count {
-  color: #7d8b99;
-}
-
-:global(html.dark) .course-footer {
-  border-top-color: #2d3741;
-}
-
-:global(html.dark) .course-progress-text {
-  color: #98a5b3;
-}
-
-:global(html.dark) .course-btn.status-new {
-  background: #4f4cc4;
-  color: #fff;
-}
-
-:global(html.dark) .course-btn.status-progress {
-  background: rgba(16, 185, 129, 0.1);
-  color: #34d399;
-  border-color: rgba(16, 185, 129, 0.25);
-}
-
-:global(html.dark) .course-btn.status-completed {
-  background: rgba(16, 185, 129, 0.1);
-  color: #34d399;
-  border-color: rgba(16, 185, 129, 0.25);
-}
+/* Dark mode */
+:global(html.dark) .catalog-title { color: #e1e8ed; }
+:global(html.dark) .catalog-subtitle { color: #98a5b3; }
+:global(html.dark) .spinner { border-color: #2d3741; border-top-color: #cdccea; }
+:global(html.dark) .course-card { background: #15202b; border-color: #2d3741; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+:global(html.dark) .course-card:hover { border-color: #3d4f5f; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
+:global(html.dark) .course-progress-bar { background: #1c2b3a; }
+:global(html.dark) .course-title { color: #e1e8ed; }
+:global(html.dark) .course-description { color: #98a5b3; }
+:global(html.dark) .course-lessons-count { color: #7d8b99; }
+:global(html.dark) .course-footer { border-top-color: #2d3741; }
+:global(html.dark) .course-progress-text { color: #98a5b3; }
+:global(html.dark) .course-btn.status-new { background: #4f4cc4; color: #fff; }
+:global(html.dark) .course-btn.status-progress { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.25); }
+:global(html.dark) .course-btn.status-completed { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.25); }
 </style>

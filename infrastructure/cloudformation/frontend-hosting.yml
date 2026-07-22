@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   Finalat SPA hosting infrastructure.
-  S3 bucket for static files + CloudFront distribution with SPA routing support.
+  S3 bucket (finalat.com.mx) configured for static website hosting.
+  CloudFront distribution included for future use (optional - not required for Free Tier).
 
 Parameters:
   DomainName:
@@ -22,7 +23,7 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub 'finalat-frontend-${AWS::AccountId}'
+      BucketName: 'finalat.com.mx'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

@@ -30,20 +30,21 @@ api.interceptors.request.use(async (config) => {
  */
 export async function syncTasasBanxico(): Promise<{ synced: boolean; message: string }> {
   try {
-    const response = await api.post('/banxico/sync-tasas')
-    return { synced: true, message: response.data.message }
+    const response = await api.post('/scrapers/sync-banxico')
+    return { synced: true, message: response.data.message || 'Synced' }
   } catch (err: any) {
-    const detail = err.response?.data?.detail
-    const message = detail?.message || 'No se pudieron sincronizar las tasas de Banxico'
-    console.warn('Sync Banxico:', message)
-    return { synced: false, message }
+    return { synced: false, message: 'No se pudieron sincronizar las tasas de Banxico' }
   }
 }
 
 export async function getInstruments(type?: string): Promise<Instrument[]> {
   const params = type ? { instrument_type: type } : {}
-  const response = await api.get<Instrument[]>('/instruments/', { params })
-  return response.data
+  const response = await api.get('/instruments/', { params })
+  // Backend wraps response in {success, data: {items: [...]}}
+  const data = response.data
+  if (data?.data?.items) return data.data.items
+  if (Array.isArray(data)) return data
+  return []
 }
 
 export async function calculateOptimalDistribution(
@@ -69,13 +70,10 @@ export async function getTasaObjetivo() {
  */
 export async function syncTasasNu(): Promise<{ synced: boolean; message: string; vigencia?: string }> {
   try {
-    const response = await api.post('/nu/sync-tasas')
-    return { synced: true, message: response.data.message, vigencia: response.data.vigencia }
+    const response = await api.post('/scrapers/sync-all')
+    return { synced: true, message: 'Synced' }
   } catch (err: any) {
-    const detail = err.response?.data?.detail
-    const message = typeof detail === 'string' ? detail : 'No se pudieron sincronizar las tasas de Nu'
-    console.warn('Sync Nu:', message)
-    return { synced: false, message }
+    return { synced: false, message: 'No se pudieron sincronizar las tasas de Nu' }
   }
 }
 
@@ -83,28 +81,16 @@ export async function syncTasasNu(): Promise<{ synced: boolean; message: string;
  * Sincroniza las tasas de Stori con datos del scraping.
  */
 export async function syncTasasStori(): Promise<{ synced: boolean; message: string }> {
-  try {
-    const response = await api.post('/stori/sync-tasas')
-    return { synced: true, message: response.data.message }
-  } catch (err: any) {
-    const detail = err.response?.data?.detail
-    const message = typeof detail === 'string' ? detail : 'No se pudieron sincronizar las tasas de Stori'
-    console.warn('Sync Stori:', message)
-    return { synced: false, message }
-  }
+  // Stori sync is handled by sync-all
+  return { synced: true, message: 'Handled by sync-all' }
 }
 
 /**
  * Sincroniza todas las fuentes adicionales (Ualá, Mercado Pago, Klar, Finsus, Didi).
  */
 export async function syncAllScrapers(): Promise<{ synced: boolean; message: string }> {
-  try {
-    const response = await api.post('/scrapers/sync-all')
-    return { synced: true, message: response.data.message }
-  } catch (err: any) {
-    console.warn('Sync scrapers:', err.message)
-    return { synced: false, message: 'No se pudieron sincronizar algunas fuentes' }
-  }
+  // Already handled by syncTasasNu which calls sync-all
+  return { synced: true, message: 'Already synced' }
 }
 
 /**
@@ -146,4 +132,83 @@ export async function sendChatMessage(
     current_step_index: currentStepIndex,
   })
   return response.data
+}
+
+
+// ─── Courses (Learning System) ──────────────────────────────────────────────
+
+export interface CourseItem {
+  id: string
+  title: string
+  description: string
+  lesson_count: number
+  sort_order: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface LessonSummary {
+  id: string
+  course_id: string
+  title: string
+  sort_order: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface CourseWithLessons {
+  course: { id: string; title: string; description: string }
+  lessons: LessonSummary[]
+}
+
+export interface LessonDetail {
+  id: string
+  course_id: string
+  title: string
+  content: string
+  sort_order: number
+  completed: boolean
+  completed_at: string | null
+  recommendation: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface CourseProgress {
+  course_id: string
+  course_title: string
+  total_lessons: number
+  completed_lessons: number
+  progress_percentage: number
+}
+
+/** Unwrap the backend's {success, data} envelope */
+function unwrap<T>(response: any): T {
+  const d = response.data
+  if (d && 'data' in d) return d.data as T
+  return d as T
+}
+
+export async function getCourses(): Promise<CourseItem[]> {
+  const response = await api.get('/courses')
+  return unwrap<CourseItem[]>(response)
+}
+
+export async function getCourseLessons(courseId: string): Promise<CourseWithLessons> {
+  const response = await api.get(`/courses/${courseId}/lessons`)
+  return unwrap<CourseWithLessons>(response)
+}
+
+export async function getLessonDetail(courseId: string, lessonId: string): Promise<LessonDetail> {
+  const response = await api.get(`/courses/${courseId}/lessons/${lessonId}`)
+  return unwrap<LessonDetail>(response)
+}
+
+export async function markLessonComplete(courseId: string, lessonId: string): Promise<void> {
+  await api.post(`/courses/${courseId}/lessons/${lessonId}/complete`)
+}
+
+export async function getCoursesProgress(): Promise<CourseProgress[]> {
+  const response = await api.get('/courses/progress')
+  return unwrap<CourseProgress[]>(response)
 }

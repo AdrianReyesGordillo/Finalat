@@ -92,22 +92,15 @@ async function handleSend() {
       calculating.value = true
       await scrollToBottom()
 
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      sessionStorage.setItem('investmentResult', JSON.stringify(response.investment_result))
+      await new Promise(resolve => setTimeout(resolve, 1500))
       calculating.value = false
 
-      sessionStorage.removeItem('chat_messages')
-      sessionStorage.removeItem('chat_state')
-      sessionStorage.removeItem('chat_step')
-
-      // Si eligió plan de aprendizaje, inscribir y redirigir al curso
-      if (response.redirect_to === 'course') {
-        await courseStore.enroll()
-        router.push('/curso')
-      } else {
-        router.push('/resultados')
-      }
+      // Show the assistant's message with investment results inline in chat
+      messages.value.push({
+        role: 'assistant',
+        content: response.assistant_message,
+      })
+      saveState()
     } else {
       messages.value.push({
         role: 'assistant',
