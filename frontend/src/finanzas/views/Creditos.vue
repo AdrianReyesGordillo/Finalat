@@ -298,7 +298,7 @@ const usagePercent = ref(0)
 async function loadCreditos() {
   loading.value = true
   try {
-    const response = await cachedGet('/api/creditos')
+    const response = await cachedGet('/api/creditos', { forceRefresh: true })
     const data = response.data?.data || response.data || {}
     cards.value = data.cards || data.items || []
     const summary = data.summary || {}

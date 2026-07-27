@@ -41,6 +41,8 @@ from backend.routers.categories import router as categories_router
 from backend.routers.chat import router as chat_router
 from backend.routers.scrapers import router as scrapers_router
 from backend.routers.finanzas import router as finanzas_router
+from backend.routers.config import router as config_router
+from backend.routers.admin import router as admin_router
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +127,6 @@ app.include_router(ahorro_router)
 app.include_router(creditos_router)
 app.include_router(gastos_ingresos_router)
 app.include_router(deudas_router)
-app.include_router(aportaciones_router)
 app.include_router(afore_router)
 app.include_router(gbm_portfolio_router)
 app.include_router(patrimonio_router)
@@ -151,6 +152,9 @@ app.include_router(scrapers_router)
 
 # Finanzas dashboard
 app.include_router(finanzas_router)
+app.include_router(config_router)
+app.include_router(admin_router)
+app.include_router(aportaciones_router)
 
 # Update tracker
 app.include_router(update_tracker_router)

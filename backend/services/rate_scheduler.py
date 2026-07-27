@@ -2,20 +2,19 @@
 
 Scheduler configuration (Mexico City timezone):
 ─────────────────────────────────────────────────────
-DAILY (02:00-02:30 AM):
-  02:00 AM - Ualá (vigencia-based cache)
-  02:15 AM - Nu (vigencia-based cache)
-  02:30 AM - CETES/Banxico (API oficial)
-
-WEEKLY (Monday 02:45-03:45 AM):
-  02:45 AM - Stori
-  03:00 AM - Mercado Pago
-  03:15 AM - Klar
-  03:30 AM - Finsus
-  03:45 AM - Didi
+DAILY (04:00-04:35 AM CDMX):
+  04:00 AM - Ualá
+  04:05 AM - Nu
+  04:10 AM - CETES/Banxico
+  04:15 AM - Stori
+  04:20 AM - Mercado Pago
+  04:25 AM - Klar
+  04:30 AM - Finsus
+  04:35 AM - Didi
 ─────────────────────────────────────────────────────
 
-Each task has up to 4 retries with ~3.3 min between attempts (fits in 15 min window).
+Each task has up to 4 retries with ~3.3 min between attempts.
+All instruments update every day to ensure rates are current.
 """
 
 import asyncio
@@ -272,57 +271,59 @@ scheduler = AsyncIOScheduler()
 
 
 def setup_scheduler() -> None:
-    """Register all cron jobs on the scheduler instance."""
+    """Register all cron jobs on the scheduler instance.
+    
+    ALL instruments update DAILY at 4:00 AM Mexico City time,
+    staggered in 5-minute intervals to avoid rate limits.
+    """
 
-    # DAILY tasks (02:00 - 02:30 AM Mexico City)
+    # ALL tasks DAILY at 4:00-4:35 AM Mexico City
     scheduler.add_job(
         scheduled_fetch_uala,
-        trigger=CronTrigger(hour=2, minute=0, timezone=MEXICO_TZ),
+        trigger=CronTrigger(hour=4, minute=0, timezone=MEXICO_TZ),
         id="fetch_uala_daily",
         replace_existing=True,
     )
     scheduler.add_job(
         scheduled_fetch_nu,
-        trigger=CronTrigger(hour=2, minute=15, timezone=MEXICO_TZ),
+        trigger=CronTrigger(hour=4, minute=5, timezone=MEXICO_TZ),
         id="fetch_nu_daily",
         replace_existing=True,
     )
     scheduler.add_job(
         scheduled_fetch_cetes,
-        trigger=CronTrigger(hour=2, minute=30, timezone=MEXICO_TZ),
+        trigger=CronTrigger(hour=4, minute=10, timezone=MEXICO_TZ),
         id="fetch_cetes_daily",
         replace_existing=True,
     )
-
-    # WEEKLY tasks (Monday 02:45 - 03:45 AM Mexico City)
     scheduler.add_job(
         scheduled_fetch_stori,
-        trigger=CronTrigger(day_of_week="mon", hour=2, minute=45, timezone=MEXICO_TZ),
-        id="fetch_stori_weekly",
+        trigger=CronTrigger(hour=4, minute=15, timezone=MEXICO_TZ),
+        id="fetch_stori_daily",
         replace_existing=True,
     )
     scheduler.add_job(
         scheduled_fetch_mercadopago,
-        trigger=CronTrigger(day_of_week="mon", hour=3, minute=0, timezone=MEXICO_TZ),
-        id="fetch_mercadopago_weekly",
+        trigger=CronTrigger(hour=4, minute=20, timezone=MEXICO_TZ),
+        id="fetch_mercadopago_daily",
         replace_existing=True,
     )
     scheduler.add_job(
         scheduled_fetch_klar,
-        trigger=CronTrigger(day_of_week="mon", hour=3, minute=15, timezone=MEXICO_TZ),
-        id="fetch_klar_weekly",
+        trigger=CronTrigger(hour=4, minute=25, timezone=MEXICO_TZ),
+        id="fetch_klar_daily",
         replace_existing=True,
     )
     scheduler.add_job(
         scheduled_fetch_finsus,
-        trigger=CronTrigger(day_of_week="mon", hour=3, minute=30, timezone=MEXICO_TZ),
-        id="fetch_finsus_weekly",
+        trigger=CronTrigger(hour=4, minute=30, timezone=MEXICO_TZ),
+        id="fetch_finsus_daily",
         replace_existing=True,
     )
     scheduler.add_job(
         scheduled_fetch_didi,
-        trigger=CronTrigger(day_of_week="mon", hour=3, minute=45, timezone=MEXICO_TZ),
-        id="fetch_didi_weekly",
+        trigger=CronTrigger(hour=4, minute=35, timezone=MEXICO_TZ),
+        id="fetch_didi_daily",
         replace_existing=True,
     )
 

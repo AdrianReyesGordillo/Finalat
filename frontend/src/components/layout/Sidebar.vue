@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 defineProps<{
   open: boolean
@@ -11,11 +12,14 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.userEmail === 'adriax45@gmail.com')
 
 interface NavItem {
   label: string
   to: string
   icon: string
+  adminOnly?: boolean
 }
 
 const navItems: NavItem[] = [
@@ -23,7 +27,7 @@ const navItems: NavItem[] = [
   { label: 'Ahorro', to: '/ahorro', icon: 'M17 9V7a5 5 0 00-10 0v2M5 12h14l1 9H4l1-9z' },
   { label: 'Créditos', to: '/creditos', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
   { label: 'Gastos/Ingresos', to: '/gastos-ingresos', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
-  { label: 'Deudas', to: '/deudas', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { label: 'Deudas', to: '/deudas', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', adminOnly: true },
   { label: 'Aportaciones', to: '/aportaciones', icon: 'M12 4v16m8-8H4' },
   { label: 'Afore', to: '/afore', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'GBM', to: '/gbm-portfolio', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
@@ -31,6 +35,8 @@ const navItems: NavItem[] = [
   { label: 'Asesor Fina', to: '/asesor', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z' },
   { label: 'Aprendizaje', to: '/aprendizaje', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
 ]
+
+const filteredNavItems = computed(() => navItems.filter(item => !item.adminOnly || isAdmin.value))
 
 const currentPath = computed(() => route.path)
 
@@ -63,7 +69,7 @@ function closeSidebar() {
   >
     <nav class="p-4 space-y-1">
       <router-link
-        v-for="item in navItems"
+        v-for="item in filteredNavItems"
         :key="item.to"
         :to="item.to"
         :class="[

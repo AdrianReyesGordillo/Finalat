@@ -10,8 +10,12 @@ over the entire history.
 """
 
 import logging
+import time
+import threading
+from collections import deque
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +25,28 @@ from backend.services.fina_agent import GREETING, fina_chat
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+# Per-user chat rate limiter: 20 messages per 60 seconds
+_CHAT_MAX = 20
+_CHAT_WINDOW = 60
+_chat_requests: dict[str, deque] = {}
+_chat_lock = threading.Lock()
+
+
+def _chat_rate_limited(user_id: str) -> bool:
+    """Check if user has exceeded chat rate limit (20 msg/min)."""
+    now = time.time()
+    with _chat_lock:
+        if user_id not in _chat_requests:
+            _chat_requests[user_id] = deque()
+        timestamps = _chat_requests[user_id]
+        cutoff = now - _CHAT_WINDOW
+        while timestamps and timestamps[0] <= cutoff:
+            timestamps.popleft()
+        if len(timestamps) >= _CHAT_MAX:
+            return True
+        timestamps.append(now)
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +87,7 @@ async def get_greeting():
 @router.post("/message", response_model=ChatMessageResponse)
 async def send_message(
     body: ChatMessageRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Process a user message through the Fina agent.
@@ -69,6 +96,13 @@ async def send_message(
     The state dict contains the message history in a simplified format.
     We reconstruct the Bedrock Converse message format and run the agent.
     """
+    # Per-user chat rate limit (stricter than global: 20 msg/min)
+    user_id = getattr(request.state, "user_id", None)
+    if user_id and _chat_rate_limited(user_id):
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Has enviado muchos mensajes. Espera un momento antes de continuar."}
+        )
     state = body.state.copy()
     step_index = body.current_step_index
 
@@ -92,17 +126,24 @@ async def send_message(
                 "content": [{"text": content}],
             })
 
+    # Sanitize user message (strip HTML tags)
+    import re
+    clean_message = re.sub(r'<[^>]+>', '', body.user_message).strip()
+    if not clean_message:
+        clean_message = body.user_message.strip()
+
     # Add the current user message
     converse_messages.append({
         "role": "user",
-        "content": [{"text": body.user_message}],
+        "content": [{"text": clean_message}],
     })
 
     # Run the Fina agent
-    assistant_text, investment_result = await fina_chat(converse_messages, db)
+    user_name = state.pop("user_name", "")
+    assistant_text, investment_result = await fina_chat(converse_messages, db, user_name=user_name)
 
     # Update state with the new messages for the frontend to persist
-    history.append({"role": "user", "content": body.user_message})
+    history.append({"role": "user", "content": clean_message})
     history.append({"role": "assistant", "content": assistant_text})
 
     # Keep only last 20 messages to avoid token overflow

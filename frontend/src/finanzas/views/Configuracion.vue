@@ -26,7 +26,7 @@
       <p class="panel-description">Selecciona qué secciones deseas ver en la navegación y en el dashboard.</p>
 
       <div class="panels-list">
-        <div class="panel-toggle-item">
+        <div class="panel-toggle-item" v-if="isAdmin">
           <div class="panel-toggle-info">
             <i class="pi pi-money-bill panel-toggle-icon" style="color: #ef4444;"></i>
             <div>
@@ -123,7 +123,7 @@
               </label>
             </div>
 
-            <div class="panel-toggle-item">
+            <div class="panel-toggle-item" v-if="isAdmin">
               <div class="panel-toggle-info">
                 <i class="pi pi-users panel-toggle-icon" style="color: #10b981;"></i>
                 <div>
@@ -151,7 +151,7 @@
               </label>
             </div>
 
-            <div class="panel-toggle-item">
+            <div class="panel-toggle-item" v-if="isAdmin">
               <div class="panel-toggle-info">
                 <i class="pi pi-chart-line panel-toggle-icon" style="color: #8b5cf6;"></i>
                 <div>
@@ -186,8 +186,8 @@
 
           <div class="gi-cat-list">
             <div v-for="cat in giCategoriesList" :key="cat.id" class="gi-cat-item">
-              <span class="gi-cat-name">{{ cat.name }}</span>
-              <div class="gi-cat-actions">
+              <span class="gi-cat-name">{{ cat.name }}<span v-if="cat.system" class="gi-cat-system"> (predeterminada)</span></span>
+              <div v-if="!cat.system" class="gi-cat-actions">
                 <button class="btn-edit" @click="openGICategoryModal(cat)"><i class="pi pi-pencil"></i></button>
                 <button class="btn-delete" @click="deleteGICategory(cat.id)"><i class="pi pi-trash"></i></button>
               </div>
@@ -302,7 +302,7 @@
           </div>
           <div class="config-item-actions">
             <button class="btn-edit" @click="openAportacionModal(item)"><i class="pi pi-pencil"></i></button>
-            <button class="btn-delete" @click="deleteAportacion(item.id)"><i class="pi pi-trash"></i></button>
+            <button v-if="!item.system" class="btn-delete" @click="deleteAportacion(item.id)"><i class="pi pi-trash"></i></button>
           </div>
         </div>
         <div v-if="!aportacionesList.length" class="config-empty">No hay aportaciones configuradas.</div>
@@ -395,7 +395,7 @@
         <div class="modal-body">
           <div class="form-field">
             <label>Nombre / Categoría</label>
-            <input type="text" v-model="aportacionForm.category" placeholder="Ej: GBM, Afore..." />
+            <input type="text" v-model="aportacionForm.category" placeholder="Ej: GBM, Afore..." :disabled="aportacionForm.system" />
           </div>
           <div class="form-field">
             <label>Persona (opcional)</label>
@@ -445,6 +445,10 @@ const route = useRoute()
 const prefsStore = usePreferencesStore()
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.mode === 'dark')
+
+import { useAuthStore } from '@/stores/auth'
+const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.userEmail === 'adriax45@gmail.com')
 const validTabs = ['paneles', 'ahorro', 'creditos', 'aportaciones']
 const initialTab = validTabs.includes(route.query.tab) ? route.query.tab : 'paneles'
 const activeTab = ref(initialTab)
@@ -460,7 +464,7 @@ const editingAhorro = ref(null)
 const ahorroForm = ref({ name: '', description: '', annualRate: 0, color: '#1da1f2', rateCap: 0, excessRate: 0 })
 
 async function loadAhorro() {
-  const { data } = await cachedGet('/api/config/ahorro')
+  const { data } = await cachedGet('/api/config/ahorro', { forceRefresh: true })
   ahorroList.value = data
 }
 
@@ -502,7 +506,7 @@ const editingCredito = ref(null)
 const creditoForm = ref({ name: '', color: '#1da1f2' })
 
 async function loadCreditos() {
-  const { data } = await cachedGet('/api/config/creditos')
+  const { data } = await cachedGet('/api/config/creditos', { forceRefresh: true })
   creditosList.value = data
 }
 
@@ -549,17 +553,17 @@ function frequencyLabel(freq) {
 }
 
 async function loadAportaciones() {
-  const { data } = await cachedGet('/api/config/aportaciones')
+  const { data } = await cachedGet('/api/config/aportaciones', { forceRefresh: true })
   aportacionesList.value = data
 }
 
 function openAportacionModal(item) {
   if (item) {
     editingAportacion.value = item
-    aportacionForm.value = { category: item.category, person: item.person, amount: item.amount, color: item.color, frequency: item.frequency || 'semanal' }
+    aportacionForm.value = { category: item.category, person: item.person, amount: item.amount, color: item.color, frequency: item.frequency || 'semanal', system: item.system || false }
   } else {
     editingAportacion.value = null
-    aportacionForm.value = { category: '', person: '', amount: 0, color: '#1da1f2', frequency: 'semanal' }
+    aportacionForm.value = { category: '', person: '', amount: 0, color: '#1da1f2', frequency: 'semanal', system: false }
   }
   showAportacionModal.value = true
 }
@@ -590,8 +594,8 @@ const editingGICategory = ref(null)
 const giCategoryForm = ref({ name: '' })
 
 async function loadGICategories() {
-  const { data } = await cachedGet('/api/gi/categories')
-  giCategoriesList.value = data.filter(c => !c.system)
+  const { data } = await cachedGet('/api/gi/categories', { forceRefresh: true })
+  giCategoriesList.value = data
 }
 
 function openGICategoryModal(item) {

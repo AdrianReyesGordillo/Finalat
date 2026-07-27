@@ -1,17 +1,18 @@
 """Scraper routes — Manual sync endpoints for financial instrument rates.
 
 Provides:
-  POST /api/scrapers/sync-all     — sync all scraper sources
-  POST /api/scrapers/sync-banxico — sync CETES from Banxico API
-  POST /api/scrapers/sync-nu      — sync Nu rates
-  POST /api/scrapers/sync-stori   — sync Stori rates
+  POST /api/scrapers/sync-all     — sync all scraper sources (admin only)
+  POST /api/scrapers/sync-banxico — sync CETES from Banxico API (admin only)
+  POST /api/scrapers/sync-nu      — sync Nu rates (admin only)
+  POST /api/scrapers/sync-stori   — sync Stori rates (admin only)
   GET  /api/scrapers/status       — cache status for all scrapers
 """
 
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,6 +36,14 @@ from backend.services.scrapers.didi import fetch_didi_rates, get_cache_status as
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/scrapers", tags=["scrapers"])
+
+ADMIN_UID = "TMti8ciOrQbO2n3soWErc1dILTo1"
+
+
+def _is_admin(request: Request) -> bool:
+    """Check if the request comes from the admin user."""
+    uid = getattr(request.state, "user_id", None)
+    return uid == ADMIN_UID
 
 
 # ---------------------------------------------------------------------------
@@ -75,8 +84,11 @@ async def _sync_rates(
 # ---------------------------------------------------------------------------
 
 @router.post("/sync-all")
-async def sync_all_scrapers(db: AsyncSession = Depends(get_db)):
-    """Sync all scraper sources to the database."""
+async def sync_all_scrapers(request: Request, db: AsyncSession = Depends(get_db)):
+    """Sync all scraper sources to the database (admin only)."""
+    if not _is_admin(request):
+        return JSONResponse(status_code=403, content={"error": "forbidden"})
+
     results = {}
 
     # Ualá
@@ -166,8 +178,10 @@ async def sync_all_scrapers(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/sync-banxico")
-async def sync_banxico(db: AsyncSession = Depends(get_db)):
-    """Sync CETES rates from Banxico API."""
+async def sync_banxico(request: Request, db: AsyncSession = Depends(get_db)):
+    """Sync CETES rates from Banxico API (admin only)."""
+    if not _is_admin(request):
+        return JSONResponse(status_code=403, content={"error": "forbidden"})
     try:
         clear_banxico_cache()
         tasas = await get_tasas_cetes()

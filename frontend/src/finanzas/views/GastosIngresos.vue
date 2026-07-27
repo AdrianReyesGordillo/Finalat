@@ -450,7 +450,7 @@ async function deleteRecord() {
 
 async function loadRecords() {
   try {
-    const response = await cachedGet('/api/gi/records')
+    const response = await cachedGet('/api/gi/records', { forceRefresh: true })
     transactions.value = response.data.records
   } catch (error) {
     console.error('Error loading records:', error)

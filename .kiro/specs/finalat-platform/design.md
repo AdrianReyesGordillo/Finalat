@@ -10,7 +10,7 @@ Finalat is a full-stack personal finance management and AI-powered investment ad
 - **Performance**: In-memory LRU cache (500 entries, 5-min TTL), lazy-loaded routes, sub-2s API responses
 - **User experience**: Spanish (es-MX) locale, dark mode, accessible (WCAG 2.1 AA), responsive
 - **Cost-efficient**: AWS Free Tier deployment (S3+CloudFront, EC2 t2.micro or Lambda, RDS db.t3.micro)
-- **AI-guided advisory**: Deterministic state machine driving a natural-language conversation via Amazon Bedrock (Claude)
+- **AI-guided advisory**: Autonomous LLM agent (Fina) with tool_use capability via Amazon Bedrock (Claude)
 
 ### Technology Stack
 
@@ -20,10 +20,27 @@ Finalat is a full-stack personal finance management and AI-powered investment ad
 | Backend | FastAPI (Python 3.13), Uvicorn, SQLAlchemy 2.0, Pydantic v2 |
 | Database | PostgreSQL 15 (RDS) / SQLite (local dev fallback) |
 | Auth | Firebase Authentication (email/password + Google OAuth) |
-| AI | Amazon Bedrock (Claude 3 Sonnet) |
+| AI | Amazon Bedrock (Claude 3 Sonnet) — Autonomous agent with tool_use |
 | Encryption | cryptography (Fernet — AES-256-CBC + HMAC-SHA256) |
-| CI/CD | GitHub Actions |
-| Hosting | AWS S3 + CloudFront (SPA), EC2 t2.micro or Lambda (API), RDS (DB) |
+| CI/CD | GitHub Actions (CI, deploy-backend, deploy-frontend) |
+| Hosting | AWS S3 + CloudFront (SPA), EC2 t2.micro (API), RDS (DB) |
+| Scraping | APScheduler + httpx (automatic rate sync from financial providers) |
+
+### Platform Modules (User-Facing Features)
+
+| Module | Description |
+|--------|-------------|
+| **Fina (AI Advisor)** | Conversational agent that answers financial questions and recommends optimized savings allocations using real instrument data |
+| **Dashboard Financiero** | Visual overview: patrimonio neto, ingresos/gastos del mes, tasa de ahorro, créditos, inversiones |
+| **Gastos e Ingresos** | Transaction registry with categories, monthly charts, income vs expense comparison |
+| **Tarjetas de Crédito** | Track balances, limits, utilization percentage with visual bars |
+| **Deudas** | Debt tracking with interest rates, monthly payments, and payoff projections |
+| **Aportaciones** | Recurring contributions (savings goals) with frequency tracking |
+| **Inversiones** | Portfolio view (GBM positions, Afore, savings instruments) with market values |
+| **Tasas en Tiempo Real** | Live instrument rates from 15+ providers (Nu, Ualá, Stori, CETES, Finsus, Klar, etc.) |
+| **Cursos** | Interactive financial education courses with lesson progress tracking |
+| **Optimizador** | Greedy allocation algorithm that distributes capital across instruments by risk/liquidity profile |
+| **Patrimonio Neto** | Automated net worth calculation (assets − liabilities) |
 
 ---
 
@@ -48,14 +65,14 @@ graph TB
         GOOGLE[Google OAuth Provider]
     end
 
-    subgraph Backend["FastAPI Application (EC2 / Lambda)"]
+    subgraph Backend["FastAPI Application (EC2)"]
         API[FastAPI Router]
         JWT_V[JWT Verifier]
         CACHE[LRU Cache]
         ENC[Encryption Service]
         OPT[Optimizer]
-        SM[State Machine]
-        SCRAPER[Rate Scraper]
+        FINA[Fina Agent - tool_use]
+        SCRAPER[Rate Scraper + APScheduler]
     end
 
     subgraph AI["Amazon Bedrock"]
@@ -76,8 +93,8 @@ graph TB
     CACHE -->|Miss| ENC
     ENC -->|Encrypted Fields| PG
     API --> OPT
-    API --> SM
-    SM --> CLAUDE
+    API --> FINA
+    FINA --> CLAUDE
     API --> SCRAPER
     SCRAPER -->|Store Rates| PG
 ```
@@ -113,7 +130,7 @@ graph LR
     subgraph Domain["Domain Layer"]
         MODELS[Domain Models]
         OPTIMIZER[Optimizer Algorithm]
-        STATE_MACHINE[State Machine]
+        FINA_AGENT[Fina Agent - Autonomous LLM]
         ENCRYPTION[Encryption Service]
         CACHE_L[Cache Layer]
     end
@@ -130,11 +147,11 @@ graph LR
     MIDDLEWARE --> SERVICES
     SERVICES --> MODELS
     SERVICES --> OPTIMIZER
-    SERVICES --> STATE_MACHINE
+    SERVICES --> FINA_AGENT
     SERVICES --> ENCRYPTION
     SERVICES --> CACHE_L
     CACHE_L --> DB_REPO
-    STATE_MACHINE --> BEDROCK
+    FINA_AGENT --> BEDROCK
     SERVICES --> SCRAPER_I
     MIDDLEWARE --> FIREBASE
 ```
@@ -147,35 +164,47 @@ graph LR
 
 ```
 backend/
-├── main.py                    # FastAPI app entry, CORS, startup/shutdown
+├── main.py                    # FastAPI app entry, CORS, middleware, lifespan
 ├── config.py                  # Settings via Pydantic BaseSettings
 ├── middleware/
-│   ├── auth.py               # JWT verification middleware
-│   └── rate_limiter.py       # Per-user rate limiting (100 req/min)
+│   ├── auth.py               # Firebase JWT verification middleware
+│   ├── rate_limiter.py       # Per-user rate limiting (100 req/min)
+│   ├── security_headers.py   # CSP, HSTS, X-Frame-Options, etc.
+│   └── __init__.py
 ├── routers/
-│   ├── auth.py               # /api/auth (login, register proxy)
 │   ├── ahorro.py             # /api/ahorro CRUD
 │   ├── creditos.py           # /api/creditos CRUD
 │   ├── gastos_ingresos.py    # /api/gastos-ingresos CRUD
 │   ├── deudas.py             # /api/deudas CRUD
 │   ├── aportaciones.py       # /api/aportaciones CRUD
 │   ├── afore.py              # /api/afore CRUD
-│   ├── gbm.py                # /api/gbm upload + CRUD
+│   ├── gbm_portfolio.py      # /api/gbm upload + CRUD
 │   ├── categories.py         # /api/categories CRUD
-│   ├── instruments.py        # /api/instruments (read, admin scrape)
+│   ├── instruments.py        # /api/instruments (read, scrape)
 │   ├── courses.py            # /api/courses + /api/lessons
-│   ├── advisor.py            # /api/advisor (Fina chat)
-│   └── update_tracker.py     # /api/update-tracker
+│   ├── advisor.py            # /api/advisor (Fina greeting/recommendations)
+│   ├── chat.py               # /api/chat (Fina autonomous agent)
+│   ├── optimizer.py          # /api/optimizer (allocation algorithm)
+│   ├── patrimonio.py         # /api/patrimonio (net worth calculation)
+│   ├── finanzas.py           # /api/finanzas (dashboard aggregation)
+│   ├── scrapers.py           # /api/scrapers (manual rate sync triggers)
+│   ├── config.py             # /api/config (user preferences)
+│   ├── admin.py              # /api/admin (admin panel)
+│   ├── update_tracker.py     # /api/update-tracker
+│   └── __init__.py
 ├── services/
 │   ├── encryption.py         # Fernet encrypt/decrypt
 │   ├── cache.py              # LRU cache with TTL
 │   ├── optimizer.py          # Greedy allocation algorithm
-│   ├── state_machine.py      # Deterministic conversation FSM
-│   ├── bedrock_client.py     # Amazon Bedrock integration
-│   ├── rate_scraper.py       # Instrument rate scraping
-│   └── update_tracker.py     # Module update timestamps
+│   ├── fina_agent.py         # Autonomous LLM agent (Bedrock Claude + tool_use)
+│   ├── bedrock_client.py     # Amazon Bedrock API integration
+│   ├── rate_scraper.py       # Instrument rate scraping (httpx)
+│   ├── rate_scheduler.py     # APScheduler automatic rate sync
+│   ├── banxico.py            # Banxico TIIE/CETES reference rates
+│   ├── nu.py                 # Nu Mexico rate scraper
+│   └── seed_data.py          # Instrument seeding
 ├── models/
-│   ├── database.py           # SQLAlchemy engine + session
+│   ├── database.py           # SQLAlchemy async engine + session
 │   ├── user.py               # User model
 │   ├── ahorro.py             # Savings model
 │   ├── creditos.py           # Credit cards model
@@ -187,14 +216,32 @@ backend/
 │   ├── categories.py         # Categories model
 │   ├── instruments.py        # Instruments model
 │   ├── courses.py            # Courses + Lessons models
-│   ├── conversation.py       # Conversation session model
+│   ├── lesson_progress.py    # Lesson progress model
+│   ├── conversation.py       # Chat conversation session model
 │   └── update_tracker.py     # Update tracker model
 ├── schemas/
 │   ├── common.py             # APIResponse envelope schema
-│   └── ...                   # Pydantic request/response schemas per module
-└── utils/
-    ├── response.py           # Standard response builder
-    └── validators.py         # Shared validation helpers
+│   ├── ahorro.py             # Savings schemas
+│   ├── creditos.py           # Credit card schemas
+│   ├── gastos_ingresos.py    # Expenses/income schemas
+│   ├── deudas.py             # Debt schemas
+│   ├── aportaciones.py       # Contributions schemas
+│   ├── afore.py              # Pension schemas
+│   ├── gbm_portfolio.py      # GBM portfolio schemas
+│   └── __init__.py
+├── finanzas/                  # Legacy/alternative finance module
+│   ├── routes.py             # Dashboard routes
+│   ├── database.py           # Finance-specific DB helpers
+│   ├── crypto.py             # Encryption integration
+│   ├── cache.py              # Module cache
+│   └── ...managers           # Module managers (gi, deudas, aportaciones, etc.)
+├── utils/
+│   └── response.py           # Standard response builder
+├── alembic/                   # Database migrations
+│   └── versions/             # Migration scripts
+├── seed_courses.py           # Course content seeding
+├── seed_demo_data.py         # Demo data for development
+└── requirements.txt          # Python dependencies
 ```
 
 ### Frontend Component Hierarchy
@@ -203,55 +250,56 @@ backend/
 frontend/src/
 ├── main.ts                     # App bootstrap
 ├── App.vue                     # Root component
-├── router/
-│   └── index.ts               # Vue Router config with guards
+├── firebase.ts                 # Firebase configuration
+├── style.css                   # Global styles (Tailwind)
 ├── stores/
-│   ├── auth.ts                # authStore (Pinia)
-│   ├── finance.ts             # financeStore (Pinia)
-│   ├── advisor.ts             # advisorStore (Pinia)
-│   └── learning.ts            # learningStore (Pinia)
+│   └── auth.ts                # authStore (Pinia) — Firebase auth state
 ├── composables/
-│   ├── useAuth.ts             # Firebase auth composable
-│   ├── useApi.ts              # Axios instance + interceptors
-│   └── useTheme.ts            # Dark mode toggle
-├── layouts/
-│   ├── DefaultLayout.vue      # TopNav + MainContent (public)
-│   └── DashboardLayout.vue    # TopNav + Sidebar + MainContent
+│   └── ...                    # Shared composables
+├── services/
+│   └── api.ts                 # Axios API client + all endpoint functions
 ├── components/
 │   ├── layout/
-│   │   ├── TopNav.vue         # Fixed 64px top navigation
-│   │   ├── Sidebar.vue        # 200-280px collapsible sidebar
-│   │   └── MainContent.vue    # Content area wrapper
-│   ├── ui/
-│   │   ├── LoadingSpinner.vue
-│   │   ├── ErrorAlert.vue
-│   │   ├── ConfirmDialog.vue
-│   │   ├── DataTable.vue      # Paginated table (50 items/page)
-│   │   └── CurrencyInput.vue  # es-MX formatted money input
-│   ├── charts/
-│   │   └── FinanceChart.vue   # Bar/line chart wrapper
-│   └── advisor/
-│       ├── ChatWindow.vue     # Fina conversation UI
-│       └── ChatMessage.vue    # Individual message bubble
-├── pages/
-│   ├── LoginPage.vue
-│   ├── RegisterPage.vue
-│   ├── HomePage.vue
-│   ├── finanzas/
-│   │   ├── FinanzasPage.vue   # Dashboard root
-│   │   ├── AhorroPage.vue
-│   │   ├── CreditosPage.vue
-│   │   ├── GastosIngresosPage.vue
-│   │   ├── DeudasPage.vue
-│   │   ├── AportacionesPage.vue
-│   │   ├── AforePage.vue
-│   │   ├── PatrimonioPage.vue
-│   │   └── GbmPage.vue
-│   ├── advisor/
-│   │   └── AdvisorPage.vue    # Fina chat page
-│   └── learning/
-│       ├── CoursesPage.vue
-│       └── LessonPage.vue
+│   │   └── NavBar.vue         # Top navigation bar
+│   ├── advisor/               # Fina chat UI components
+│   ├── demos/                 # Demo/marketing components
+│   ├── ui/                    # Reusable UI components
+│   ├── AdBanner.vue           # Promotional banner
+│   ├── SectionTest.vue        # Quiz/test section
+│   ├── SectionTestResult.vue  # Quiz results
+│   └── StrandsAnimation.vue   # Visual animation
+├── views/
+│   ├── HomeView.vue           # Main page with Fina chat integration
+│   ├── LoginView.vue          # Firebase auth login
+│   ├── SignupView.vue         # Firebase auth registration
+│   ├── DashboardView.vue      # General dashboard
+│   ├── MainMenuView.vue       # Navigation menu
+│   ├── CourseCatalog.vue      # Course listing with progress
+│   ├── CourseView.vue         # Individual course detail
+│   ├── CourseLearnView.vue    # Lesson reader
+│   ├── LearnView.vue          # Learning hub
+│   ├── RatesView.vue          # Live instrument rates (15+ providers)
+│   ├── ResultsView.vue        # Optimizer results display
+│   ├── PlanesView.vue         # Subscription plans
+│   ├── AdminView.vue          # Admin panel
+│   ├── AboutView.vue          # About Finalat
+│   ├── DisclaimerView.vue     # Financial disclaimer
+│   ├── PrivacyView.vue        # Privacy policy
+│   └── TermsView.vue          # Terms of service
+├── finanzas/                   # Financial dashboard module
+│   ├── FinanzasLayout.vue     # Layout wrapper with sidebar
+│   ├── views/
+│   │   ├── Dashboard.vue      # Financial overview (patrimonio, ingresos, gastos, tasa de ahorro)
+│   │   ├── GastosIngresos.vue # Expenses & income registry
+│   │   ├── Creditos.vue       # Credit cards (balance, limit, utilization)
+│   │   ├── Deudas.vue         # Debt tracker
+│   │   ├── Aportaciones.vue   # Recurring contributions
+│   │   ├── Inversiones.vue    # Investment portfolio (GBM, Afore, Savings)
+│   │   └── Configuracion.vue  # User financial settings
+│   ├── components/            # Finance-specific components
+│   ├── stores/                # Finance Pinia stores
+│   └── utils/                 # Finance utilities (formatters, etc.)
+├── data/                       # Static data files
 └── types/
     └── index.ts               # TypeScript interfaces
 ```
@@ -798,10 +846,11 @@ graph TB
 
 **Infrastructure Design Decisions:**
 
-- **EC2 over Lambda**: FastAPI's in-memory LRU cache requires a persistent process. Lambda's ephemeral nature would eliminate cache benefits. EC2 t2.micro provides a stable runtime within Free Tier.
+- **EC2 over Lambda**: FastAPI's in-memory LRU cache and APScheduler require a persistent process. Lambda's ephemeral nature would eliminate cache benefits and scheduled jobs. EC2 t2.micro provides a stable runtime within Free Tier.
 - **CloudFront OAC**: S3 bucket has public access blocked; CloudFront uses Origin Access Control for secure read access.
 - **RDS security group**: Only allows inbound from EC2's security group on port 5432.
 - **SPA routing**: CloudFront custom error page returns index.html for 404s, enabling Vue Router history mode.
+- **Rate Scheduler**: APScheduler runs inside the FastAPI process, syncing instrument rates from 15+ providers automatically every 6 hours.
 
 ---
 

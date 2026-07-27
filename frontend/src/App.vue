@@ -16,7 +16,7 @@ const isAuthPage = computed(() =>
 const isFinanzas = computed(() => route.path.startsWith('/finanzas'))
 
 const showFooter = computed(() => 
-  !isAuthPage.value && !isFinanzas.value && route.path !== '/agente' && route.path !== '/configuracion'
+  !isAuthPage.value && !isFinanzas.value && route.path !== '/agente' && route.path !== '/configuracion' && !route.path.startsWith('/cursos') && !route.path.startsWith('/curso') && !route.path.startsWith('/aprende')
 )
 </script>
 
@@ -73,9 +73,9 @@ const showFooter = computed(() =>
             </ul>
           </div>
 
-          <!-- Empresa -->
+          <!-- Nosotros -->
           <div>
-            <h4 class="text-sm font-semibold text-white mb-3">Empresa</h4>
+            <h4 class="text-sm font-semibold text-white mb-3">Nosotros</h4>
             <ul class="space-y-2 text-sm">
               <li><RouterLink to="/nosotros" class="hover:text-white transition-colors">Acerca de Finalat</RouterLink></li>
               <li><RouterLink to="/terminos" class="hover:text-white transition-colors">Términos y condiciones</RouterLink></li>

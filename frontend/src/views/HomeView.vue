@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { getChatGreeting, sendChatMessage, type ChatState, type ChatResponse } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import AdBanner from '@/components/AdBanner.vue'
+
+const authStore = useAuthStore()
+const firstName = computed(() => {
+  const full = authStore.displayName
+  return full ? full.split(' ')[0] : ''
+})
 
 interface DisplayMessage {
   role: 'user' | 'assistant'
@@ -43,11 +50,17 @@ onMounted(async () => {
   if (!restored) {
     try {
       const greeting = await getChatGreeting()
-      messages.value.push({ role: 'assistant', content: greeting })
+      const personalizedGreeting = firstName.value
+        ? greeting.replace(/^Hola, soy/, `Hola **${firstName.value}**, soy`)
+        : greeting
+      messages.value.push({ role: 'assistant', content: personalizedGreeting })
     } catch {
+      const name = firstName.value || ''
       messages.value.push({
         role: 'assistant',
-        content: 'Hola, soy **Fina**. Te ayudo a encontrar las mejores opciones para hacer crecer tu dinero en México. Para empezar, ¿cómo te llamas?',
+        content: name
+          ? `Hola **${name}**, soy **Fina**, tu asesora financiera. Puedo ayudarte a encontrar las mejores cuentas de ahorro para hacer crecer tu dinero en México. ¿En qué te puedo ayudar hoy?`
+          : 'Hola, soy **Fina**, tu asesora financiera. Puedo ayudarte a encontrar las mejores cuentas de ahorro para hacer crecer tu dinero en México. ¿En qué te puedo ayudar hoy?',
       })
     }
     saveState()
@@ -70,7 +83,7 @@ async function handleSend() {
   await scrollToBottom()
 
   try {
-    const response: ChatResponse = await sendChatMessage(text, chatState.value, stepIndex.value)
+    const response: ChatResponse = await sendChatMessage(text, { ...chatState.value, user_name: firstName.value }, stepIndex.value)
 
     // Actualizar estado
     chatState.value = response.state
@@ -124,6 +137,27 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
+// --- Slider plazo ---
+const sliderMonths = ref(12)
+const sliderActive = ref(false)
+
+function sliderLabel(months: number): string {
+  if (months <= 6) return '6 meses o menos'
+  if (months >= 36) return '3 años o más'
+  const years = Math.floor(months / 12)
+  const rem = months % 12
+  if (years === 0) return `${months} meses`
+  if (rem === 0) return years === 1 ? '1 año' : `${years} años`
+  return years === 1 ? `1 año ${rem} meses` : `${years} años ${rem} meses`
+}
+
+function sendSliderValue() {
+  const label = sliderLabel(sliderMonths.value)
+  sliderActive.value = false
+  userInput.value = label
+  handleSend()
+}
+
 async function scrollToBottom() {
   await nextTick()
   if (chatContainer.value) {
@@ -135,9 +169,16 @@ async function scrollToBottom() {
 }
 
 function formatMarkdown(text: string): string {
-  return text
+  // Remove slider marker from rendered text (slider is handled separately)
+  const cleaned = text.replace(/\[\[SLIDER_PLAZO\]\]/g, '')
+  return cleaned
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="text-[#F0A500] underline hover:text-[#d49200]">$1</a>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>')
+}
+
+function hasSlider(content: string): boolean {
+  return content.includes('[[SLIDER_PLAZO]]')
 }
 </script>
 
@@ -180,7 +221,7 @@ function formatMarkdown(text: string): string {
               <!-- Assistant avatar -->
               <div
                 v-if="msg.role === 'assistant'"
-                class="w-11 h-11 rounded-full mr-3 flex-shrink-0 mt-1 bg-[#ffffff] border border-[#2D2B6B]/30 overflow-hidden flex items-center justify-center"
+                class="w-11 h-11 rounded-full mr-3 flex-shrink-0 mt-1 bg-white dark:bg-[#15202b] border border-[#2D2B6B]/30 dark:border-[#2d3741] overflow-hidden flex items-center justify-center"
               >
                 <img src="/logo-icon.jpg" alt="Fina" class="w-9 h-9 object-contain rounded-full" />
               </div>
@@ -191,22 +232,46 @@ function formatMarkdown(text: string): string {
                   'max-w-[85%] sm:max-w-[80%] px-4 sm:px-5 py-3.5 text-[15px] leading-relaxed',
                   msg.role === 'user'
                     ? 'bg-[#2D2B6B] text-white rounded-2xl rounded-br-sm chat-bubble-user'
-                    : 'bg-white text-[#2D2B6B] rounded-2xl rounded-bl-sm border border-[#E0E0F0] shadow-sm chat-bubble-bot',
+                    : 'bg-white dark:bg-[#15202b] text-[#2D2B6B] dark:text-[#e1e8ed] rounded-2xl rounded-bl-sm border border-[#E0E0F0] dark:border-[#2d3741] shadow-sm chat-bubble-bot',
                 ]"
               >
                 <div v-html="formatMarkdown(msg.content)"></div>
               </div>
             </div>
 
+            <!-- Slider de plazo (aparece debajo del bubble que lo solicita) -->
+            <div v-if="msg.role === 'assistant' && hasSlider(msg.content) && i === messages.length - 1" class="w-full mt-3 px-14">
+              <div class="bg-white dark:bg-[#15202b] border border-[#E0E0F0] dark:border-[#2d3741] rounded-2xl px-5 py-4 shadow-sm">
+                <div class="flex justify-between items-center mb-2">
+                  <span class="text-xs text-gray-500 dark:text-[#8899a6]">6 meses</span>
+                  <span class="text-sm font-semibold text-[#2D2B6B] dark:text-white">{{ sliderLabel(sliderMonths) }}</span>
+                  <span class="text-xs text-gray-500 dark:text-[#8899a6]">3+ años</span>
+                </div>
+                <input
+                  type="range"
+                  min="6"
+                  max="36"
+                  step="3"
+                  v-model.number="sliderMonths"
+                  class="w-full h-2 bg-gray-200 dark:bg-[#2d3741] rounded-lg appearance-none cursor-pointer accent-[#F0A500]"
+                />
+                <button
+                  @click="sendSliderValue"
+                  class="mt-3 w-full py-2 bg-[#F0A500]/40 hover:bg-[#F0A500] text-[#2D2B6B] font-semibold rounded-xl transition-colors"
+                >
+                  Seleccionar {{ sliderLabel(sliderMonths) }}
+                </button>
+              </div>
+            </div>
 
           </div>
 
           <!-- Typing indicator -->
           <div v-if="loading" class="flex justify-start">
-            <div class="w-11 h-11 rounded-full mr-3 flex-shrink-0 bg-[#ffffff] border border-[#2D2B6B]/30 overflow-hidden flex items-center justify-center">
+            <div class="w-11 h-11 rounded-full mr-3 flex-shrink-0 bg-white dark:bg-[#15202b] border border-[#2D2B6B]/30 dark:border-[#2d3741] overflow-hidden flex items-center justify-center">
               <img src="/logo-icon.jpg" alt="Fina" class="w-9 h-9 object-contain rounded-full" />
             </div>
-            <div class="bg-white border border-[#E0E0F0] rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm chat-bubble-bot">
+            <div class="bg-white dark:bg-[#15202b] border border-[#E0E0F0] dark:border-[#2d3741] rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm chat-bubble-bot">
               <div class="flex space-x-1.5">
                 <div class="w-2.5 h-2.5 bg-primary-300 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
                 <div class="w-2.5 h-2.5 bg-primary-300 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
@@ -217,7 +282,7 @@ function formatMarkdown(text: string): string {
 
           <!-- Calculating animation -->
           <div v-if="calculating" class="flex justify-start">
-            <div class="w-11 h-11 rounded-full mr-3 flex-shrink-0 bg-[#ffffff] border border-[#2D2B6B]/30 overflow-hidden flex items-center justify-center">
+            <div class="w-11 h-11 rounded-full mr-3 flex-shrink-0 bg-white dark:bg-[#15202b] border border-[#2D2B6B]/30 dark:border-[#2d3741] overflow-hidden flex items-center justify-center">
               <img src="/logo-icon.jpg" alt="Fina" class="w-9 h-9 object-contain rounded-full" />
             </div>
             <div class="bg-white border border-accent-200 rounded-2xl rounded-bl-sm px-5 py-4 shadow-sm">
@@ -230,7 +295,7 @@ function formatMarkdown(text: string): string {
         </div>
 
         <!-- Input area -->
-        <div class="bg-white border-t border-surface-200 px-3 md:px-4 py-3">
+        <div class="bg-transparent px-3 md:px-4 py-3">
           <div class="flex gap-2 items-center">
             <textarea
               ref="inputRef"
@@ -238,7 +303,7 @@ function formatMarkdown(text: string): string {
               @keydown="handleKeydown"
               :disabled="loading || calculating"
               rows="1"
-              class="flex-1 resize-none px-4 py-3 bg-[#FAFAFE] border border-[#E0E0F0] rounded-3xl focus:ring-2 focus:ring-[#F0A500] focus:border-[#F0A500] text-[15px] text-[#2D2B6B] placeholder-[#9b99c8] disabled:opacity-50 outline-none transition-all chat-input"
+              class="flex-1 resize-none px-4 py-3 bg-transparent border border-[#E0E0F0] dark:border-[#3a3a5c] rounded-3xl focus:ring-2 focus:ring-[#F0A500] focus:border-[#F0A500] text-[15px] text-[#2D2B6B] dark:text-white placeholder-[#9b99c8] disabled:opacity-50 outline-none transition-all chat-input"
               placeholder="Escribe tu respuesta..."
             ></textarea>
             <button

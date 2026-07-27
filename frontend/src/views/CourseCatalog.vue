@@ -328,18 +328,36 @@ onMounted(async () => {
 }
 
 /* Dark mode */
-:global(html.dark) .catalog-title { color: #e1e8ed; }
-:global(html.dark) .catalog-subtitle { color: #98a5b3; }
-:global(html.dark) .spinner { border-color: #2d3741; border-top-color: #cdccea; }
-:global(html.dark) .course-card { background: #15202b; border-color: #2d3741; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
-:global(html.dark) .course-card:hover { border-color: #3d4f5f; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
-:global(html.dark) .course-progress-bar { background: #1c2b3a; }
-:global(html.dark) .course-title { color: #e1e8ed; }
-:global(html.dark) .course-description { color: #98a5b3; }
-:global(html.dark) .course-lessons-count { color: #7d8b99; }
-:global(html.dark) .course-footer { border-top-color: #2d3741; }
-:global(html.dark) .course-progress-text { color: #98a5b3; }
-:global(html.dark) .course-btn.status-new { background: #4f4cc4; color: #fff; }
+:global(html.dark) .catalog-title { color: #ffffff; }
+:global(html.dark) .catalog-subtitle { color: #9b99c8; }
+:global(html.dark) .spinner { border-color: #2D2B6B; border-top-color: #F0A500; }
+:global(html.dark) .course-card { background: #1a1f3d; border-color: #2D2B6B; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+:global(html.dark) .course-card:hover { border-color: #F0A500; box-shadow: 0 4px 12px rgba(240, 165, 0, 0.1); }
+:global(html.dark) .course-progress-bar { background: #2D2B6B; }
+:global(html.dark) .course-title { color: #ffffff; }
+:global(html.dark) .course-description { color: #9b99c8; }
+:global(html.dark) .course-lessons-count { color: #7c7aad; }
+:global(html.dark) .course-footer { border-top-color: #2D2B6B; }
+:global(html.dark) .course-progress-text { color: #9b99c8; }
+:global(html.dark) .course-btn.status-new { background: #F0A500; color: #2D2B6B; }
 :global(html.dark) .course-btn.status-progress { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.25); }
 :global(html.dark) .course-btn.status-completed { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.25); }
+</style>
+
+<style>
+/* Dark mode overrides for CourseCatalog (unscoped to properly target html.dark) */
+html.dark .catalog-title { color: #ffffff !important; }
+html.dark .catalog-subtitle { color: #9b99c8 !important; }
+html.dark .spinner { border-color: #2D2B6B !important; border-top-color: #F0A500 !important; }
+html.dark .course-card { background: #15202b !important; border-color: #2d3741 !important; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important; }
+html.dark .course-card:hover { border-color: #F0A500 !important; box-shadow: 0 4px 12px rgba(240, 165, 0, 0.1) !important; }
+html.dark .course-progress-bar { background: #1c2b3a !important; }
+html.dark .course-title { color: #e1e8ed !important; }
+html.dark .course-description { color: #8899a6 !important; }
+html.dark .course-lessons-count { color: #8899a6 !important; }
+html.dark .course-footer { border-top-color: #2d3741 !important; }
+html.dark .course-progress-text { color: #8899a6 !important; }
+html.dark .course-btn.status-new { background: #F0A500 !important; color: #2D2B6B !important; }
+html.dark .course-btn.status-progress,
+html.dark .course-btn.status-completed { background: rgba(16, 185, 129, 0.1) !important; color: #34d399 !important; border-color: rgba(16, 185, 129, 0.25) !important; }
 </style>

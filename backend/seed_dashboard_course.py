@@ -11,16 +11,15 @@ from backend.seed_courses import LESSON_CONTENT
 COURSE_DATA = {
     "id": "domina-tu-dashboard",
     "title": "Domina tu Dashboard Financiero",
-    "description": "Aprende a usar cada sección del dashboard: patrimonio neto, gastos, créditos, inversiones, deudas y aportaciones.",
+    "description": "Aprende a usar cada sección del dashboard: patrimonio neto, gastos, créditos, inversiones y aportaciones.",
     "sort_order": 4,
     "lessons": [
         {"id": "dash-intro", "title": "¿Qué es el Dashboard?", "sort_order": 1},
         {"id": "dash-patrimonio", "title": "Patrimonio neto y tasa de ahorro", "sort_order": 2},
         {"id": "dash-gastos-ingresos", "title": "Gastos e Ingresos", "sort_order": 3},
         {"id": "dash-creditos", "title": "Tarjetas de crédito", "sort_order": 4},
-        {"id": "dash-deudas", "title": "Deudas y préstamos", "sort_order": 5},
-        {"id": "dash-inversiones", "title": "Inversiones y ahorro", "sort_order": 6},
-        {"id": "dash-aportaciones", "title": "Aportaciones periódicas", "sort_order": 7},
+        {"id": "dash-inversiones", "title": "Inversiones y ahorro", "sort_order": 5},
+        {"id": "dash-aportaciones", "title": "Aportaciones periódicas", "sort_order": 6},
     ],
 }
 
