@@ -140,6 +140,18 @@ async def list_creditos(
                     updated_at=entry.updated_at,
                 ).model_dump(mode="json")
             )
+            # Enrich with color and aliased fields for the finanzas frontend
+            items[-1]["name"] = entry.card_name
+            items[-1]["color"] = "#2D2B6B"  # default, will be overridden below
+            items[-1]["debt"] = decrypted_balance
+            items[-1]["creditLimit"] = decrypted_limit
+            items[-1]["minPayment"] = decrypted_min_payment
+            items[-1]["usagePercent"] = utilization if isinstance(utilization, (int, float)) else 0
+            items[-1]["available"] = max(decrypted_limit - decrypted_balance, 0)
+            items[-1]["fullPayment"] = decrypted_balance
+            items[-1]["cutoffDate"] = None
+            items[-1]["paymentDate"] = None
+            items[-1]["daysUntilPayment"] = None
         except (EncryptionError, ValueError) as exc:
             logger.warning(
                 "Failed to decrypt credito entry %s for user %s",
@@ -149,10 +161,60 @@ async def list_creditos(
             failed_count += 1
 
     response_data = CreditoListResponse(
-        items=[CreditoResponse(**item) for item in items],
+        items=[CreditoResponse(**{k: v for k, v in item.items() if k in CreditoResponse.model_fields}) for item in items],
         total_balance=round(total_balance, 2),
         failed_count=failed_count,
     ).model_dump(mode="json")
+
+    # Enrich response with colors and dates from account_metadata
+    from sqlalchemy import text
+    meta_result = await db.execute(
+        text("SELECT record_id, meta_key, meta_value FROM account_metadata WHERE user_id = :uid AND table_name = 'creditos'"),
+        {"uid": user_id}
+    )
+    meta_map: dict[str, dict] = {}
+    for rid, key, value in meta_result.fetchall():
+        if rid not in meta_map:
+            meta_map[rid] = {}
+        meta_map[rid][key] = value
+
+    total_debt = 0.0
+    total_limit = 0.0
+    for item in items:
+        item_id = item.get("id")
+        if item_id in meta_map:
+            meta = meta_map[item_id]
+            item["color"] = meta.get("color", "#2D2B6B")
+            item["cutoffDate"] = meta.get("cutoffDate")
+            item["paymentDate"] = meta.get("paymentDate")
+            # Calculate daysUntilPayment
+            if meta.get("paymentDate"):
+                from datetime import date as date_cls, datetime as dt_cls
+                try:
+                    pd = dt_cls.strptime(meta["paymentDate"], "%Y-%m-%d").date()
+                    today = date_cls.today()
+                    if pd < today:
+                        pd = pd.replace(month=pd.month + 1) if pd.month < 12 else pd.replace(year=pd.year + 1, month=1)
+                    item["daysUntilPayment"] = (pd - today).days
+                except (ValueError, TypeError):
+                    pass
+        total_debt += item.get("debt", 0)
+        total_limit += item.get("creditLimit", 0)
+
+    total_available = max(total_limit - total_debt, 0)
+    usage_pct = round((total_debt / total_limit * 100), 1) if total_limit else 0
+
+    # Override response_data items with enriched items (including color, name, etc.)
+    response_data["items"] = items
+    response_data["cards"] = items
+    response_data["summary"] = {
+        "totalDebt": total_debt,
+        "totalAvailable": total_available,
+        "totalLimit": total_limit,
+        "totalCredit": total_limit,
+        "totalPayment": sum(i.get("minPayment", 0) for i in items),
+        "usagePercent": usage_pct,
+    }
 
     # Store in cache
     cache.set(user_id, CACHE_LIST_KEY, response_data)

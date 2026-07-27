@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   getCourseLessons,
@@ -9,6 +9,19 @@ import {
   type LessonDetail,
   type LessonSummary,
 } from '@/services/api'
+
+// Demo components (lazy loaded)
+const DemoGastosIngresos = defineAsyncComponent(() => import('@/components/demos/DemoGastosIngresos.vue'))
+const DemoAportaciones = defineAsyncComponent(() => import('@/components/demos/DemoAportaciones.vue'))
+const DemoCreditos = defineAsyncComponent(() => import('@/components/demos/DemoCreditos.vue'))
+const DemoInversiones = defineAsyncComponent(() => import('@/components/demos/DemoInversiones.vue'))
+
+const DEMO_COMPONENTS: Record<string, any> = {
+  'gastos-ingresos': DemoGastosIngresos,
+  'aportaciones': DemoAportaciones,
+  'creditos': DemoCreditos,
+  'inversiones': DemoInversiones,
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -39,6 +52,18 @@ const courseColor = computed(() => {
 })
 
 const isFirstLesson = computed(() => currentLessonIndex.value === 0)
+
+// Demo detection
+const activeDemo = computed(() => {
+  const content = currentLesson.value?.content || ''
+  const match = content.match(/\[\[DEMO:([a-z-]+)\]\]/)
+  return match ? match[1] : null
+})
+const activeDemoComponent = computed(() => activeDemo.value ? DEMO_COMPONENTS[activeDemo.value] : null)
+const lessonHtml = computed(() => {
+  const content = currentLesson.value?.content || ''
+  return content.replace(/\[\[DEMO:[a-z-]+\]\]/g, '')
+})
 const isLastLesson = computed(() => currentLessonIndex.value === lessons.value.length - 1)
 const progressPercent = computed(() => {
   if (lessons.value.length === 0) return 0
@@ -210,7 +235,12 @@ watch(() => route.params.courseId, () => {
         </div>
 
         <!-- Lesson content from API (HTML) -->
-        <div class="lesson-content" v-html="currentLesson.content"></div>
+        <div class="lesson-content" v-html="lessonHtml"></div>
+
+        <!-- Interactive demos (rendered after the HTML content section that contains the marker) -->
+        <div v-if="activeDemo" class="demo-container">
+          <component :is="activeDemoComponent" />
+        </div>
 
         <!-- Navigation buttons -->
         <div class="lesson-nav">
@@ -529,6 +559,48 @@ watch(() => route.params.courseId, () => {
   color: var(--color-primary-700, #2D2B6B);
   font-weight: 500;
   margin: 1rem 0;
+}
+
+/* Lesson guide (config steps before demos) */
+.lesson-content :deep(.lesson-guide) {
+  background: #0f1419;
+  border: 1px solid #2d3741;
+  border-left: 4px solid #F0A500;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  color: #e1e8ed;
+}
+.lesson-content :deep(.lesson-guide h3) {
+  color: #F0A500;
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+.lesson-content :deep(.lesson-guide p) {
+  color: #8899a6;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+.lesson-content :deep(.lesson-guide ol),
+.lesson-content :deep(.lesson-guide ul) {
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #e1e8ed;
+}
+.lesson-content :deep(.lesson-guide li) {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 0.4rem;
+}
+.lesson-content :deep(.lesson-guide strong) {
+  color: #ffffff;
+}
+.lesson-content :deep(.lesson-guide ol) {
+  list-style-type: decimal;
+}
+.lesson-content :deep(.lesson-guide ul) {
+  list-style-type: disc;
 }
 
 /* Warning box */

@@ -205,7 +205,7 @@ class Optimizer:
             if instruments_used >= max_instruments:
                 break
 
-            if remaining < instrument.min_investment:
+            if remaining < (instrument.min_investment or 0):
                 continue
 
             # Determine allocation amount: min of remaining and max_investment

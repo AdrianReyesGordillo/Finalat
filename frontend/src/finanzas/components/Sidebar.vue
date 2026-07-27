@@ -53,9 +53,13 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePreferencesStore } from '../stores/preferences'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const isExpanded = ref(false)
+const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.userEmail === 'adriax45@gmail.com')
+const ADMIN_ONLY_ROUTES = ['fin-deudas']
 const prefsStore = usePreferencesStore()
 
 // Load preferences if not loaded yet
@@ -90,6 +94,8 @@ const allRoutes = router
 
 const routes = computed(() =>
   allRoutes.filter(r => {
+    // Admin-only routes
+    if (ADMIN_ONLY_ROUTES.includes(r.name) && !isAdmin.value) return false
     const panelKey = ROUTE_PANEL_MAP[r.name]
     if (!panelKey) return true // Always show dashboard
     return prefsStore.isPanelEnabled(panelKey)

@@ -109,7 +109,7 @@
             </div>
             <span class="inv-rate income">{{ formatPct(liquidezRate, 1) }}% anual</span>
           </div>
-          <div class="inv-item" v-if="prefsStore.panelPrestamos && totalLoans > 0">
+          <div class="inv-item" v-if="prefsStore.panelPrestamos && totalLoans > 0 && isAdmin">
             <div class="inv-icon" style="background-color: rgba(16, 185, 129, 0.15); color: #10b981;">
               <i class="pi pi-money-bill"></i>
             </div>
@@ -119,7 +119,7 @@
             </div>
             <span class="inv-rate income">Activos</span>
           </div>
-          <div class="inv-item" v-if="prefsStore.panelAcciones">
+          <div class="inv-item" v-if="prefsStore.panelAcciones && isAdmin">
             <div class="inv-icon" style="background-color: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
               <i class="pi pi-chart-line"></i>
             </div>
@@ -166,7 +166,7 @@
         </div>
         <Line :data="lineChartData" :options="chartOptions" />
       </div>
-      <div v-if="prefsStore.panelDeudas" class="card debts-summary">
+      <div v-if="prefsStore.panelDeudas && isAdmin" class="card debts-summary">
         <div class="card-header">
           <h3>Deudas</h3>
           <router-link to="/finanzas/deudas" class="card-link">Ver detalle →</router-link>
@@ -237,6 +237,11 @@ import finApi from '../utils/api'
 import { cachedGet } from '../utils/cache'
 import { formatMoney, formatNumber, formatPct } from '../utils/format.js'
 import { usePreferencesStore } from '../stores/preferences'
+import { useAuthStore } from '@/stores/auth'
+
+const prefsStore = usePreferencesStore()
+const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.userEmail === 'adriax45@gmail.com')
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -250,8 +255,6 @@ import {
 } from 'chart.js'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
-
-const prefsStore = usePreferencesStore()
 
 // Reactive data from APIs
 const creditCards = ref([])
@@ -312,7 +315,7 @@ const lineChartData = ref({ labels: [], datasets: [] })
 
 onMounted(async () => {
   try {
-    const res = await cachedGet('/api/dashboard')
+    const res = await cachedGet('/api/dashboard', { forceRefresh: true })
     const { gbm: gbmRes, creditos: creditRes, inversiones: invRes, gi: giRes, deudas: deudasRes } = res.data
 
     // GBM

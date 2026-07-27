@@ -25,6 +25,10 @@ function goToDashboard() {
 function goToPlan() {
   router.push('/planes')
 }
+
+function goToAdmin() {
+  router.push('/admin')
+}
 </script>
 
 <template>
@@ -154,24 +158,37 @@ function goToPlan() {
           </button>
         </div>
 
-        <!-- Card: Plan Estudiantil (centered below) -->
-        <div v-if="showPlan" class="flex justify-center mt-6 md:mt-8">
+        <!-- Cards: Plan Estudiantil + Admin (side by side, admin only) -->
+        <div v-if="showPlan" class="flex flex-wrap justify-center gap-4 mt-6 md:mt-8">
           <button
             @click="goToPlan"
             class="bg-white rounded-2xl border border-surface-200 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-3 md:p-4 flex flex-col items-center text-center group cursor-pointer w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-22px)]"
           >
             <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-[#F0EAFF] flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
               <svg class="w-11 h-11 md:w-14 md:h-14" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Card/Badge shape -->
                 <rect x="12" y="14" width="40" height="36" rx="6" fill="#6e6bab"/>
-                <!-- Star -->
                 <path d="M32 24L34.5 30H41L35.5 34L37.5 40L32 36L26.5 40L28.5 34L23 30H29.5L32 24Z" fill="#FFCC44"/>
-                <!-- Lines -->
                 <rect x="22" y="44" width="20" height="2.5" rx="1.25" fill="white" opacity="0.5"/>
               </svg>
             </div>
             <h3 class="text-lg font-bold text-primary-700 mb-2">Plan Estudiantil</h3>
             <p class="text-sm text-primary-400 leading-relaxed">Accede a herramientas premium y contenido exclusivo.</p>
+          </button>
+
+          <button
+            @click="goToAdmin"
+            class="bg-white rounded-2xl border border-surface-200 shadow-sm hover:shadow-md hover:border-red-300 transition-all p-3 md:p-4 flex flex-col items-center text-center group cursor-pointer w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-22px)]"
+          >
+            <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-red-50 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
+              <svg class="w-11 h-11 md:w-14 md:h-14" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="12" y="16" width="40" height="32" rx="4" fill="#ef4444" opacity="0.8"/>
+                <rect x="18" y="24" width="28" height="3" rx="1.5" fill="white" opacity="0.7"/>
+                <rect x="18" y="31" width="20" height="3" rx="1.5" fill="white" opacity="0.5"/>
+                <rect x="18" y="38" width="24" height="3" rx="1.5" fill="white" opacity="0.5"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-bold text-primary-700 mb-2">Admin</h3>
+            <p class="text-sm text-primary-400 leading-relaxed">Gestionar links de referido</p>
           </button>
         </div>
       </div>

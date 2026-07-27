@@ -164,7 +164,7 @@
 
       <p class="savings-disclaimer">
         <i class="pi pi-info-circle"></i>
-        La proyección de interés diario y en todas las temporalidades puede variar según la cantidad de impuestos que te sean retenidos. Únicamente es una proyección lo más exacta posible.
+        La proyección de interés diario y en todas las temporalidades puede variar según la cantidad de impuestos que te sean retenidos.
       </p>
     </div>
 
@@ -312,7 +312,7 @@
           <div>
             <span class="update-banner-title">Afore pendiente de actualizar</span>
             <span class="update-banner-sub">
-              Es día 1 del mes — revisa y actualiza tu saldo de Afore.
+              Revisa y actualiza tu saldo de Afore.
               <span v-if="aforeUpdateStatus.lastUpdate">
                 Última actualización: {{ formatDate(aforeUpdateStatus.lastUpdate) }}
                 (hace {{ aforeUpdateStatus.daysSinceUpdate }} días)
@@ -460,9 +460,9 @@
         <div class="update-banner-info">
           <i class="pi pi-refresh"></i>
           <div>
-            <span class="update-banner-title">Portafolio GBM pendiente de actualizar</span>
+            <span class="update-banner-title">Portafolio pendiente de actualizar</span>
             <span class="update-banner-sub">
-              Es viernes — sube los archivos Excel descargados de la app GBM.
+              Sube los archivos Excel descargados de la app GBM.
               <span v-if="gbmUpdateStatus.lastUpdate">
                 Última actualización: {{ formatDate(gbmUpdateStatus.lastUpdate) }}
                 (hace {{ gbmUpdateStatus.daysSinceUpdate }} días)
@@ -692,6 +692,7 @@ import { Line, Doughnut, Bar } from 'vue-chartjs'
 import finApi from '../utils/api'
 import { cachedGet } from '../utils/cache'
 import { usePreferencesStore } from '../stores/preferences'
+import { useAuthStore } from '@/stores/auth'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -719,15 +720,22 @@ if (!prefsStore.loaded) {
   prefsStore.load()
 }
 
+const authStore = useAuthStore()
+const ADMIN_EMAIL = 'adriax45@gmail.com'
+const isAdmin = computed(() => authStore.userEmail === ADMIN_EMAIL)
+
 const allTabs = [
-  { id: 'savings', label: 'Ahorro', icon: 'pi pi-wallet', pref: 'ahorro' },
-  { id: 'loans', label: 'Préstamos', icon: 'pi pi-users', pref: 'prestamos' },
-  { id: 'afore', label: 'Afore', icon: 'pi pi-shield', pref: 'afore' },
-  { id: 'gbm', label: 'Acciones', icon: 'pi pi-chart-line', pref: 'acciones' }
+  { id: 'savings', label: 'Ahorro', icon: 'pi pi-wallet', pref: 'ahorro', adminOnly: false },
+  { id: 'loans', label: 'Préstamos', icon: 'pi pi-users', pref: 'prestamos', adminOnly: true },
+  { id: 'afore', label: 'Afore', icon: 'pi pi-shield', pref: 'afore', adminOnly: false },
+  { id: 'gbm', label: 'Acciones', icon: 'pi pi-chart-line', pref: 'acciones', adminOnly: true }
 ]
 
 const tabs = computed(() => {
-  const filtered = allTabs.filter(t => prefsStore.isPanelEnabled(t.pref))
+  const filtered = allTabs.filter(t => {
+    if (t.adminOnly && !isAdmin.value) return false
+    return prefsStore.isPanelEnabled(t.pref)
+  })
   // If active tab is no longer visible, switch to first available
   if (filtered.length && !filtered.find(t => t.id === activeTab.value)) {
     activeTab.value = filtered[0].id
@@ -986,7 +994,7 @@ const gbmCashPerformanceData = computed(() => {
 
 async function loadGBMData() {
   try {
-    const response = await cachedGet('/api/gbm/portfolio')
+    const response = await cachedGet('/api/gbm/portfolio', { forceRefresh: true })
     gbmNacional.value = response.data.nacional
     gbmUSA.value = response.data.usa
     gbmSummary.value = response.data.summary
@@ -999,7 +1007,7 @@ async function loadGBMData() {
 
 async function loadInversiones() {
   try {
-    const response = await cachedGet('/api/inversiones')
+    const response = await cachedGet('/api/inversiones', { forceRefresh: true })
     const data = response.data
 
     // Ahorro
@@ -1028,21 +1036,21 @@ const prestamosUpdateStatus = ref({ needsUpdate: false, lastUpdate: null, isFift
 
 async function loadUpdateStatus() {
   try {
-    const res = await cachedGet('/api/inversiones/update-status')
+    const res = await cachedGet('/api/inversiones/update-status', { forceRefresh: true })
     updateStatus.value = res.data
   } catch { /* silencioso */ }
 }
 
 async function loadAforeUpdateStatus() {
   try {
-    const res = await cachedGet('/api/inversiones/afore/update-status')
+    const res = await cachedGet('/api/inversiones/afore/update-status', { forceRefresh: true })
     aforeUpdateStatus.value = res.data
   } catch { /* silencioso */ }
 }
 
 async function loadPrestamosUpdateStatus() {
   try {
-    const res = await cachedGet('/api/inversiones/prestamos/update-status')
+    const res = await cachedGet('/api/inversiones/prestamos/update-status', { forceRefresh: true })
     prestamosUpdateStatus.value = res.data
   } catch { /* silencioso */ }
 }
@@ -1247,7 +1255,7 @@ const files = ref({ nacional: null, usa: null })
 
 async function loadGbmUpdateStatus() {
   try {
-    const res = await cachedGet('/api/gbm/update-status')
+    const res = await cachedGet('/api/gbm/update-status', { forceRefresh: true })
     gbmUpdateStatus.value = res.data
   } catch { /* silencioso */ }
 }

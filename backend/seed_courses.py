@@ -67,9 +67,8 @@ COURSES_DATA = [
             {"id": "dash-patrimonio", "title": "Patrimonio neto y tasa de ahorro", "sort_order": 2},
             {"id": "dash-gastos-ingresos", "title": "Gastos e Ingresos", "sort_order": 3},
             {"id": "dash-creditos", "title": "Tarjetas de crédito", "sort_order": 4},
-            {"id": "dash-deudas", "title": "Deudas y préstamos", "sort_order": 5},
-            {"id": "dash-inversiones", "title": "Inversiones y ahorro", "sort_order": 6},
-            {"id": "dash-aportaciones", "title": "Aportaciones periódicas", "sort_order": 7},
+            {"id": "dash-inversiones", "title": "Inversiones y ahorro", "sort_order": 5},
+            {"id": "dash-aportaciones", "title": "Aportaciones periódicas", "sort_order": 6},
         ],
     },
 ]
@@ -809,9 +808,8 @@ LESSON_CONTENT["dash-intro"] = """<h1>¿Qué es el Dashboard Financiero?</h1>
 <ul>
 <li><strong>Resumen principal:</strong> Patrimonio neto, ingresos y gastos del mes, y tu tasa de ahorro.</li>
 <li><strong>Tarjetas de crédito:</strong> Uso, deuda y próximos pagos de cada tarjeta.</li>
-<li><strong>Inversiones:</strong> Tu dinero en cuentas de ahorro, acciones, afore y préstamos.</li>
+<li><strong>Inversiones:</strong> Tu dinero en cuentas de ahorro, acciones y afore.</li>
 <li><strong>Ingresos vs Gastos:</strong> Gráfica de los últimos 6 meses para ver tendencias.</li>
-<li><strong>Deudas:</strong> Préstamos activos con cuenta regresiva al próximo pago.</li>
 <li><strong>Últimos movimientos:</strong> Tus gastos e ingresos más recientes.</li>
 </ul>
 </section>
@@ -822,7 +820,6 @@ LESSON_CONTENT["dash-intro"] = """<h1>¿Qué es el Dashboard Financiero?</h1>
 <ol>
 <li>Ir a <strong>Configuración</strong> y agregar tus tarjetas de crédito y cuentas de ahorro.</li>
 <li>Registrar tus <strong>gastos e ingresos</strong> conforme ocurran.</li>
-<li>Agregar tus <strong>deudas</strong> si tienes préstamos activos.</li>
 <li>Configurar tus <strong>aportaciones</strong> si haces ahorro periódico.</li>
 </ol>
 <p>No tienes que llenar todo de golpe. Empieza por lo básico (ingresos y gastos) y ve agregando el resto conforme te familiarices.</p>
@@ -977,59 +974,14 @@ LESSON_CONTENT["dash-creditos"] = """<h1>Tarjetas de crédito</h1>
 <div class="tip">Lo más importante es mantener actualizado el "Pago para no generar intereses" — ese es el número que debes pagar antes de tu fecha límite para no caer en deuda revolvente.</div>
 </section>"""
 
-LESSON_CONTENT["dash-deudas"] = """<h1>Deudas y préstamos</h1>
-<p class="subtitle">Lleva el control de lo que debes: cuánto, a quién y cuándo vence.</p>
-
-<section>
-<h2>¿Qué es esta sección?</h2>
-<p>Aquí registras todas tus deudas que NO son de tarjeta de crédito: préstamos personales, Fonacot, crédito de nómina, financiamientos, meses sin intereses, préstamos familiares, etc.</p>
-<p>La diferencia con la sección de créditos es que aquí son deudas con un monto fijo que se va reduciendo con cada pago, mientras que las tarjetas son crédito revolvente.</p>
-</section>
-
-<section>
-<h2>¿Qué datos necesitas para cada deuda?</h2>
-<ul>
-<li><strong>Nombre del préstamo:</strong> Identificador (ej: "Fonacot", "Liverpool MSI", "Préstamo familiar").</li>
-<li><strong>Deuda total:</strong> Cuánto debes en total actualmente.</li>
-<li><strong>Temporalidad:</strong> ¿Pagas mensual o quincenal?</li>
-<li><strong>Cantidad a pagar por periodo:</strong> Cuánto pagas cada mes o quincena.</li>
-<li><strong>Fecha de pago:</strong> Cuándo vence el próximo pago.</li>
-</ul>
-</section>
-
-<section>
-<h2>¿Qué métricas te muestra?</h2>
-<div class="card-grid">
-<div class="card"><h3>Deuda Total</h3><p>La suma de todas tus deudas activas. Este número debe ir bajando cada mes.</p></div>
-<div class="card"><h3>Préstamos Activos</h3><p>Cuántas deudas tienes abiertas simultáneamente.</p></div>
-<div class="card"><h3>Próximo Pago</h3><p>Cuántos días faltan y cuánto necesitas tener listo.</p></div>
-</div>
-</section>
-
-<section>
-<h2>Pagos restantes</h2>
-<p>El sistema calcula automáticamente cuántos pagos te faltan dividiendo tu deuda total entre el monto de cada pago. Esto te da una idea clara de cuándo terminarás de pagar.</p>
-<p>Ejemplo: Si debes $28,000 y pagas $2,800 al mes, te faltan 10 pagos (aproximadamente 10 meses).</p>
-</section>
-
-<section>
-<h2>Estrategias para pagar deudas</h2>
-<ul>
-<li><strong>Método bola de nieve:</strong> Paga primero la deuda más pequeña. Al terminarla, usa ese dinero para atacar la siguiente. Te da motivación rápida.</li>
-<li><strong>Método avalancha:</strong> Paga primero la deuda con mayor tasa de interés. Matemáticamente ahorras más dinero así.</li>
-<li><strong>Meses sin intereses:</strong> No generan intereses si pagas a tiempo, pero siguen siendo compromisos. Registrarlos te ayuda a no olvidarlos.</li>
-</ul>
-</section>"""
-
 LESSON_CONTENT["dash-inversiones"] = """<h1>Inversiones y ahorro</h1>
-<p class="subtitle">Donde crece tu dinero: cuentas de ahorro, acciones, afore y préstamos personales.</p>
+<p class="subtitle">Donde crece tu dinero: cuentas de ahorro, afore y portafolio de acciones.</p>
 
 <section>
 <h2>¿Qué incluye esta sección?</h2>
-<p>La sección de Inversiones tiene 4 sub-secciones:</p>
+<p>La sección de Inversiones tiene 3 sub-secciones:</p>
 <div class="card-grid">
 <div class="card"><h3>Cuentas de Ahorro</h3><p>Tu dinero líquido generando intereses diarios (Nu, Mercado Pago, CETES, etc.)</p></div>
-<div class="card"><h3>Préstamos</h3><p>Dinero que TÚ prestaste a alguien y que te está generando intereses.</p></div>
 <div class="card"><h3>Afore</h3><p>Tu cuenta de retiro: saldo, rendimiento y proyección a largo plazo.</p></div>
 <div class="card"><h3>Acciones (GBM)</h3><p>Tu portafolio de bolsa: acciones, ETFs, rendimientos y distribución.</p></div>
 </div>
@@ -1050,7 +1002,7 @@ LESSON_CONTENT["dash-inversiones"] = """<h1>Inversiones y ahorro</h1>
 <section>
 <h2>El portafolio total</h2>
 <p>En el dashboard principal, la sección de inversiones muestra tu "Portafolio Total" que suma:</p>
-<p><strong>Liquidez</strong> (cuentas de ahorro) + <strong>Préstamos activos</strong> + <strong>Acciones/ETFs</strong> (GBM) + <strong>Afore</strong></p>
+<p><strong>Liquidez</strong> (cuentas de ahorro) + <strong>Acciones/ETFs</strong> (GBM) + <strong>Afore</strong></p>
 <p>Este número, junto con la deuda de tus tarjetas, determina tu patrimonio neto.</p>
 </section>
 
@@ -1060,7 +1012,6 @@ LESSON_CONTENT["dash-inversiones"] = """<h1>Inversiones y ahorro</h1>
 <li><strong>Cuentas de ahorro:</strong> Haz clic en el ícono de editar (lápiz) en cada cuenta y actualiza el saldo.</li>
 <li><strong>Acciones (GBM):</strong> Sube los archivos Excel que descargas de la app GBM (Nacional y USA).</li>
 <li><strong>Afore:</strong> Actualízalo el día 1 de cada mes con los datos de tu estado de cuenta.</li>
-<li><strong>Préstamos:</strong> Agrega préstamos que tú hayas dado (capital, tasa, plazo).</li>
 </ul>
 </section>
 
